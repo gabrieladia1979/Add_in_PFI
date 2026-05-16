@@ -4,7 +4,6 @@
   "private": true,
   "scripts": {
     "dev-server": "webpack serve --mode development",
-    "prebuild": "node scripts/update-manifest.js $PROD_URL",
     "build": "webpack --mode production",
     "build:dev": "webpack --mode development",
     "start": "webpack serve --mode development"
