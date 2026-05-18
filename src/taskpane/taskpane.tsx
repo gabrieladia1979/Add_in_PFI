@@ -1,6 +1,7 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { getCurrentMessageMetadata, MailMetadata } from "../services/mailService";
+import { analyzeEmail, AnalyzeResponse } from "../services/analysisService";
 import "./taskpane.css";
 
 type AnalysisResult = {
@@ -9,14 +10,28 @@ type AnalysisResult = {
   phishScore: number;
 };
 
-const MOCK_ANALYSIS: AnalysisResult = {
-  threatLevel: "Peligro Critico",
-  explanation:
-    "Este correo simula ser de tu banco, pero el dominio real es diferente y apela al sentido de urgencia.",
-  phishScore: 72,
-};
+function buildAnalysisResult(result: AnalyzeResponse): AnalysisResult {
+  const score = Math.round((result.confidence_score || 0) * 100);
 
-const ANALYSIS_DELAY_MS = 2000;
+  let threatLevel = "Bajo";
+  if (result.is_phishing && score >= 75) {
+    threatLevel = "Peligro Critico";
+  } else if (result.is_phishing && score >= 50) {
+    threatLevel = "Alto";
+  } else if (result.is_phishing) {
+    threatLevel = "Medio";
+  }
+
+  const explanation = result.is_phishing
+    ? "Se detectaron patrones similares a phishing. Revisa remitente, enlaces y urgencia."
+    : "No se detectaron patrones fuertes de phishing, pero revisa enlaces y remitente.";
+
+  return {
+    threatLevel,
+    explanation,
+    phishScore: score,
+  };
+}
 
 function TaskPane(): JSX.Element {
   const [officeReady, setOfficeReady] = useState(false);
@@ -25,7 +40,7 @@ function TaskPane(): JSX.Element {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
-  const analyzeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
 
   useEffect(() => {
     if (typeof Office === "undefined") {
@@ -70,35 +85,27 @@ function TaskPane(): JSX.Element {
     };
   }, [officeReady, isLinked]);
 
-  useEffect(() => {
-    return () => {
-      if (analyzeTimerRef.current) {
-        clearTimeout(analyzeTimerRef.current);
-      }
-    };
-  }, []);
-
   const handleLink = (): void => {
     setIsLinked(true);
   };
 
-  const handleAnalyze = (): void => {
+  const handleAnalyze = async (): Promise<void> => {
     if (!mailMetadata) {
       return;
     }
 
-    if (analyzeTimerRef.current) {
-      clearTimeout(analyzeTimerRef.current);
-    }
-
     setIsAnalyzing(true);
     setAnalysisResult(null);
+    setAnalysisError(null);
 
-    analyzeTimerRef.current = setTimeout(() => {
+    try {
+      const response = await analyzeEmail(mailMetadata.subject, mailMetadata.body);
+      setAnalysisResult(buildAnalysisResult(response));
+    } catch (error) {
+      setAnalysisError("No se pudo analizar el correo.");
+    } finally {
       setIsAnalyzing(false);
-      setAnalysisResult(MOCK_ANALYSIS);
-      analyzeTimerRef.current = null;
-    }, ANALYSIS_DELAY_MS);
+    }
   };
 
   if (!officeReady) {
@@ -186,13 +193,15 @@ function TaskPane(): JSX.Element {
             </button>
           </div>
 
-          {(isAnalyzing || analysisResult) && (
+          {(isAnalyzing || analysisResult || analysisError) && (
             <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
               <h2 className="text-lg font-semibold">Resultado de la simulacion</h2>
               {isAnalyzing ? (
                 <p className="mt-3 text-sm text-slate-600">
                   Ejecutando modelos de riesgo...
                 </p>
+              ) : analysisError ? (
+                <p className="mt-3 text-sm text-rose-600">{analysisError}</p>
               ) : (
                 analysisResult && (
                   <div className="mt-4 space-y-4">
