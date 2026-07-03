@@ -22,9 +22,9 @@ function buildAnalysisResult(result: AnalyzeResponse): AnalysisResult {
     threatLevel = "Medio";
   }
 
-  const explanation = result.is_phishing
+  const explanation = result.raw_label || (result.is_phishing
     ? "Se detectaron patrones similares a phishing. Revisa remitente, enlaces y urgencia."
-    : "No se detectaron patrones fuertes de phishing, pero revisa enlaces y remitente.";
+    : "No se detectaron patrones fuertes de phishing, pero revisa enlaces y remitente.");
 
   return {
     threatLevel,
@@ -99,7 +99,7 @@ function TaskPane(): JSX.Element {
     setAnalysisError(null);
 
     try {
-      const response = await analyzeEmail(mailMetadata.subject, mailMetadata.body);
+      const response = await analyzeEmail(mailMetadata.subject, mailMetadata.body, mailMetadata.sender);
       setAnalysisResult(buildAnalysisResult(response));
     } catch (error) {
       setAnalysisError("No se pudo analizar el correo.");
