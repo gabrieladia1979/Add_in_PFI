@@ -1,0 +1,42 @@
+schema: spec-driven
+
+# Project context (optional)
+# This is shown to AI when creating artifacts.
+context: |
+  Project: add-in-pfi — an Outlook add-in built on Office.js.
+  Host is MailHost/Mailbox (see manifest.xml).
+
+  Tech stack:
+    - TypeScript 5.5 (strict mode enabled)
+    - React 18 (react-dom)
+    - Webpack 5 (webpack-cli, webpack-dev-server) for bundling
+    - Tailwind CSS 3.4 (postcss, autoprefixer)
+    - Office.js types via @types/office-js
+  Deployed to Vercel.
+
+  Structure:
+    - src/taskpane/ — React entry point and UI (taskpane.tsx, taskpane.html, taskpane.css)
+    - src/services/ — business logic (mailService.ts, analysisService.ts)
+    - src/global.d.ts — global type declarations
+    - manifest.xml — Office add-in manifest
+    - assets/ — static assets
+
+  Commands:
+    - npm run dev-server / npm start — webpack dev server
+    - npm run build — production build
+    - npm run build:dev — development build
+
+  Conventions:
+    - TypeScript strict mode.
+    - No test runner or linter configured yet — do NOT assume Jest/Vitest/ESLint exist.
+    - Conventional commits; no AI attribution in commit messages.
+
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+# Example:
+#   rules:
+#     proposal:
+#       - Keep proposals under 500 words
+#       - Always include a "Non-goals" section
+#     tasks:
+#       - Break tasks into chunks of max 2 hours
