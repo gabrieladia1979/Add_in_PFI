@@ -1,4 +1,5 @@
 const path = require("path");
+const webpack = require("webpack");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const CopyWebpackPlugin = require("copy-webpack-plugin");
 module.exports = async (_env, argv) => {
@@ -36,6 +37,11 @@ module.exports = async (_env, argv) => {
       ],
     },
     plugins: [
+      new webpack.DefinePlugin({
+        "process.env.API_BASE_URL": JSON.stringify(
+          process.env.API_BASE_URL || "http://127.0.0.1:8001"
+        ),
+      }),
       new HtmlWebpackPlugin({
         filename: "taskpane.html",
         template: path.resolve(__dirname, "src/taskpane/taskpane.html"),

@@ -4,7 +4,7 @@ export type AnalyzeResponse = {
   raw_label: string;
 };
 
-const API_BASE_URL = "http://127.0.0.1:8001";
+const API_BASE_URL = process.env.API_BASE_URL || "http://127.0.0.1:8001";
 
 export async function analyzeEmail(subject: string, body: string, sender: string): Promise<AnalyzeResponse> {
   const response = await fetch(`${API_BASE_URL}/api/v1/analyze`, {
