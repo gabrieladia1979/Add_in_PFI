@@ -7,29 +7,22 @@ import "./taskpane.css";
 type AnalysisResult = {
   threatLevel: string;
   explanation: string;
-  phishScore: number;
+  score: number;
+  classId: number;
 };
 
 function buildAnalysisResult(result: AnalyzeResponse): AnalysisResult {
-  const score = Math.round((result.confidence_score || 0) * 100);
+  const threatLevel = result.is_phishing ? "Alto" : "Bajo";
 
-  let threatLevel = "Bajo";
-  if (result.is_phishing && score >= 75) {
-    threatLevel = "Peligro Critico";
-  } else if (result.is_phishing && score >= 50) {
-    threatLevel = "Alto";
-  } else if (result.is_phishing) {
-    threatLevel = "Medio";
-  }
-
-  const explanation = result.raw_label || (result.is_phishing
+  const explanation = result.is_phishing
     ? "Se detectaron patrones similares a phishing. Revisa remitente, enlaces y urgencia."
-    : "No se detectaron patrones fuertes de phishing, pero revisa enlaces y remitente.");
+    : "No se detectaron patrones fuertes de phishing, pero revisa enlaces y remitente.";
 
   return {
     threatLevel,
     explanation,
-    phishScore: score,
+    score: result.score,
+    classId: result.class_id,
   };
 }
 
@@ -102,6 +95,7 @@ function TaskPane(): JSX.Element {
       const response = await analyzeEmail(mailMetadata.subject, mailMetadata.body, mailMetadata.sender);
       setAnalysisResult(buildAnalysisResult(response));
     } catch (error) {
+      console.error("No se pudo analizar el correo:", error);
       setAnalysisError("No se pudo analizar el correo.");
     } finally {
       setIsAnalyzing(false);
@@ -181,7 +175,7 @@ function TaskPane(): JSX.Element {
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 className="text-lg font-semibold">Accion principal</h2>
             <p className="mt-2 text-sm text-slate-600">
-              Ejecuta el analisis simulado con IA para generar explicaciones XAI.
+              Envia el correo abierto al servicio de clasificacion de amenazas.
             </p>
             <button
               className="mt-4 w-full rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
@@ -195,7 +189,7 @@ function TaskPane(): JSX.Element {
 
           {(isAnalyzing || analysisResult || analysisError) && (
             <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h2 className="text-lg font-semibold">Resultado de la simulacion</h2>
+              <h2 className="text-lg font-semibold">Resultado del analisis</h2>
               {isAnalyzing ? (
                 <p className="mt-3 text-sm text-slate-600">
                   Ejecutando modelos de riesgo...
@@ -217,17 +211,14 @@ function TaskPane(): JSX.Element {
                       {analysisResult.explanation}
                     </div>
                     <div>
-                      <div className="flex items-center justify-between text-xs font-semibold uppercase text-slate-400">
-                        <span>Phish-Score</span>
-                        <span>{analysisResult.phishScore}/100</span>
-                      </div>
-                      <div className="mt-2 h-2 w-full rounded-full bg-slate-200">
-                        <div
-                          className="h-2 rounded-full bg-rose-500"
-                          style={{ width: `${analysisResult.phishScore}%` }}
-                        />
-                      </div>
+                      <span className="text-xs font-semibold uppercase text-slate-400">
+                        Puntaje del modelo
+                      </span>
+                      <p className="mt-1 font-medium text-slate-900">{analysisResult.score}</p>
                     </div>
+                    <p className="text-xs text-slate-500">
+                      Clase del modelo: {analysisResult.classId}
+                    </p>
                   </div>
                 )
               )}

@@ -20,16 +20,8 @@ function getMailboxItem(): Office.MessageRead | null {
   return item as Office.MessageRead;
 }
 
-function getSenderLabel(item: Office.MessageRead): string {
-  const from = item.from;
-  if (from?.displayName) {
-    return from.displayName;
-  }
-  if (from?.emailAddress) {
-    return from.emailAddress;
-  }
-
-  return "Desconocido";
+function getSenderEmail(item: Office.MessageRead): string {
+  return item.from?.emailAddress || "Desconocido";
 }
 
 function normalizeBodyPreview(text: string): string {
@@ -46,14 +38,14 @@ function getBodyText(item: Office.MessageRead): Promise<string> {
     return Promise.resolve("");
   }
 
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     item.body.getAsync(Office.CoercionType.Text, (result) => {
       if (result.status === Office.AsyncResultStatus.Succeeded) {
         resolve(result.value || "");
         return;
       }
 
-      resolve("");
+      reject(new Error(result.error?.message || "No se pudo leer el cuerpo del correo"));
     });
   });
 }
@@ -64,7 +56,7 @@ export async function getCurrentMessageMetadata(): Promise<MailMetadata | null> 
     return null;
   }
 
-  const sender = getSenderLabel(item);
+  const sender = getSenderEmail(item);
   const subject = item.subject || "Sin asunto";
   const bodyText = await getBodyText(item);
 
