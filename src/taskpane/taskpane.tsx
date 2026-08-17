@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { getCurrentMessageMetadata, MailMetadata } from "../services/mailService";
-import { analyzeEmail, AnalyzeResponse } from "../services/analysisService";
+import { analyzeEmail, AnalyzeResponse } from "../services/mockAnalysisService";
 import "./taskpane.css";
 
 type AnalysisResult = {

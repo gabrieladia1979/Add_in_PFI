@@ -9,9 +9,9 @@
   <DefaultLocale>es-ES</DefaultLocale>
   <DisplayName DefaultValue="Phish-Score Lab" />
   <Description DefaultValue="Panel de defensa proactiva con XAI y micro-gamificacion." />
-  <IconUrl DefaultValue="https://add-in-pfi.vercel.app/assets/icon-32.png" />
-  <HighResolutionIconUrl DefaultValue="https://add-in-pfi.vercel.app/assets/icon-80.png" />
-  <SupportUrl DefaultValue="https://add-in-pfi.vercel.app" />
+  <IconUrl DefaultValue="https://localhost:3000/assets/icon-32.png" />
+  <HighResolutionIconUrl DefaultValue="https://localhost:3000/assets/icon-80.png" />
+  <SupportUrl DefaultValue="https://localhost:3000" />
 
   <Hosts>
     <Host Name="Mailbox" />
@@ -26,7 +26,7 @@
   <FormSettings>
     <Form xsi:type="ItemRead">
       <DesktopSettings>
-        <SourceLocation DefaultValue="https://add-in-pfi.vercel.app/taskpane.html" />
+        <SourceLocation DefaultValue="https://localhost:3000/taskpane.html" />
         <RequestedHeight>450</RequestedHeight>
       </DesktopSettings>
     </Form>
@@ -68,12 +68,12 @@
     </Hosts>
     <Resources>
       <bt:Images>
-        <bt:Image id="icon16" DefaultValue="https://add-in-pfi.vercel.app/assets/icon-16.png" />
-        <bt:Image id="icon32" DefaultValue="https://add-in-pfi.vercel.app/assets/icon-32.png" />
-        <bt:Image id="icon80" DefaultValue="https://add-in-pfi.vercel.app/assets/icon-80.png" />
+        <bt:Image id="icon16" DefaultValue="https://localhost:3000/assets/icon-16.png" />
+        <bt:Image id="icon32" DefaultValue="https://localhost:3000/assets/icon-32.png" />
+        <bt:Image id="icon80" DefaultValue="https://localhost:3000/assets/icon-80.png" />
       </bt:Images>
       <bt:Urls>
-        <bt:Url id="taskpaneUrl" DefaultValue="https://add-in-pfi.vercel.app/taskpane.html" />
+        <bt:Url id="taskpaneUrl" DefaultValue="https://localhost:3000/taskpane.html" />
       </bt:Urls>
       <bt:ShortStrings>
         <bt:String id="groupLabel" DefaultValue="Phish-Score" />
