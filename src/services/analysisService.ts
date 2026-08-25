@@ -1,37 +1,61 @@
-export type AnalyzeResponse = {
-  is_phishing: boolean;
-  confidence_score: number;
-  raw_label: string;
+export type AnalyzeRequest = {
+  subject: string;
+  body: string;
+  sender: string;
 };
 
-const API_BASE_URL = process.env.API_BASE_URL || "http://127.0.0.1:8001";
+export type AnalyzeResponse = {
+  status: "success";
+  is_phishing: boolean;
+  score: number;
+  class_id: number;
+};
 
-export async function analyzeEmail(subject: string, body: string, sender: string): Promise<AnalyzeResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/analyze`, {
+const API_URL = "http://localhost:8000/api/v1/analyze";
+
+function isAnalyzeResponse(value: unknown): value is AnalyzeResponse {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+
+  const data = value as Record<string, unknown>;
+  return (
+    data.status === "success" &&
+    typeof data.is_phishing === "boolean" &&
+    typeof data.score === "number" &&
+    Number.isFinite(data.score) &&
+    data.score >= 0 &&
+    data.score <= 1 &&
+    typeof data.class_id === "number" &&
+    Number.isInteger(data.class_id) &&
+    (data.class_id === 0 || data.class_id === 1) &&
+    data.class_id === (data.is_phishing ? 1 : 0)
+  );
+}
+
+export async function analyzeEmail(
+  subject: string,
+  body: string,
+  sender: string,
+): Promise<AnalyzeResponse> {
+  const payload: AnalyzeRequest = { subject, body, sender };
+  const response = await fetch(API_URL, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      metadata: {
-        asunto: subject,
-        remitente_email: sender,
-        remitente_nombre: ""
-      },
-      contenido: body
-    }),
+    body: JSON.stringify(payload),
   });
 
   if (!response.ok) {
     const message = await response.text();
-    throw new Error(message || "Error en el servicio de analisis");
+    throw new Error(message || "The analysis service returned an error");
   }
 
-  const data = await response.json();
-  
-  return {
-    is_phishing: data.is_phishing,
-    confidence_score: data.risk_score,
-    raw_label: data.reason
-  };
+  const data: unknown = await response.json();
+  if (!isAnalyzeResponse(data)) {
+    throw new Error("The analysis service returned an invalid response");
+  }
+
+  return data;
 }

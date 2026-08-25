@@ -4,7 +4,7 @@ import {
   getCurrentMessageMetadata,
   MailMetadata,
 } from "../services/mailService";
-import { analyzeEmail, AnalyzeResponse } from "../services/mockAnalysisService";
+import { analyzeEmail, AnalyzeResponse } from "../services/analysisService";
 import "./taskpane.css";
 
 type AnalysisExplanation = {
@@ -16,42 +16,32 @@ type AnalysisResult = {
   isPhishing: boolean;
   threatLevel: string;
   explanations: AnalysisExplanation[];
-  phishScore: number;
+  confidencePercentage: number;
+  classId: number;
 };
 
 function buildAnalysisResult(result: AnalyzeResponse): AnalysisResult {
-  const score = Math.round((result.confidence_score || 0) * 100);
+  const confidencePercentage = Math.round(result.score * 100);
 
   let threatLevel = "bajo";
-  if (result.is_phishing && score >= 75) {
+  if (result.is_phishing && confidencePercentage >= 75) {
     threatLevel = "crítico";
-  } else if (result.is_phishing && score >= 50) {
+  } else if (result.is_phishing && confidencePercentage >= 50) {
     threatLevel = "alto";
   } else if (result.is_phishing) {
     threatLevel = "medio";
   }
 
-  const explanation =
-    result.raw_label ||
-    (result.is_phishing
-      ? "Se detectaron patrones similares a phishing. Revisa remitente, enlaces y urgencia."
-      : "No se detectaron patrones fuertes de phishing, pero revisa enlaces y remitente.");
-  const specificExplanations = result.explanations?.filter(
-    (item) => item.trim().length > 0,
-  );
-  const explanationTexts =
-    specificExplanations && specificExplanations.length > 0
-      ? specificExplanations
-      : [explanation];
+  const explanation = result.is_phishing
+    ? "El modelo clasificó este mensaje como phishing. Revisá el remitente y evitá abrir enlaces o archivos adjuntos."
+    : "El modelo clasificó este mensaje como legítimo. Mantené las precauciones habituales antes de abrir enlaces o archivos adjuntos.";
 
   return {
     isPhishing: result.is_phishing,
     threatLevel,
-    explanations: explanationTexts.map((text, index) => ({
-      id: `xai-${index}`,
-      text,
-    })),
-    phishScore: score,
+    explanations: [{ id: "classification", text: explanation }],
+    confidencePercentage,
+    classId: result.class_id,
   };
 }
 
@@ -61,7 +51,13 @@ type AnalysisViewProps = {
 };
 
 function AnalysisView({ result, onBack }: AnalysisViewProps): JSX.Element {
-  const { isPhishing, threatLevel, explanations, phishScore } = result;
+  const {
+    isPhishing,
+    threatLevel,
+    explanations,
+    confidencePercentage,
+    classId,
+  } = result;
   const headingRef = useRef<HTMLHeadingElement>(null);
   const recommendations = isPhishing
     ? [
@@ -110,12 +106,15 @@ function AnalysisView({ result, onBack }: AnalysisViewProps): JSX.Element {
               }`}
             >
               {isPhishing
-                ? "Amenaza de phishing detectada"
-                : "Sin amenaza detectada"}
+                ? "Phishing detectado"
+                : "Correo legítimo"}
             </h1>
           </div>
           <p className="mt-5 text-base font-medium text-slate-600">
-            Puntuación de riesgo: {phishScore}/100
+            Nivel de confianza: {confidencePercentage}%
+          </p>
+          <p className="mt-2 text-sm text-slate-500">
+            Clase del modelo: {classId} ({isPhishing ? "Phishing" : "Legítimo"})
           </p>
           <p className="mt-3 text-xl font-bold text-slate-900">
             Riesgo {threatLevel}
@@ -346,8 +345,7 @@ function TaskPane(): JSX.Element {
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 className="text-lg font-semibold">Accion principal</h2>
             <p className="mt-2 text-sm text-slate-600">
-              Ejecuta el analisis simulado con IA para generar explicaciones
-              XAI.
+              Ejecuta el análisis con IA para clasificar el correo seleccionado.
             </p>
             <button
               ref={analyzeButtonRef}

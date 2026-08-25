@@ -15,10 +15,10 @@ const MOCK_ANALYSIS_FIXTURES: readonly MockAnalysisFixture[] = [
   {
     subjectMarker: "[PFI-DEMO-01]",
     response: {
+      status: "success",
       is_phishing: true,
-      confidence_score: 0.98,
-      raw_label:
-        "El correo utiliza urgencia y solicita validar credenciales desde un enlace externo.",
+      score: 0.98,
+      class_id: 1,
       explanations: [
         "El asunto comunica que la contraseña vence hoy para provocar una reacción inmediata.",
         "El mensaje solicita actualizar credenciales mediante un enlace incluido en el correo.",
@@ -30,10 +30,10 @@ const MOCK_ANALYSIS_FIXTURES: readonly MockAnalysisFixture[] = [
   {
     subjectMarker: "[PFI-DEMO-02]",
     response: {
+      status: "success",
       is_phishing: true,
-      confidence_score: 0.64,
-      raw_label:
-        "El mensaje presenta señales sospechosas en el remitente y en la solicitud de pago.",
+      score: 0.64,
+      class_id: 1,
       explanations: [
         "La identidad del remitente presenta inconsistencias con la organización que dice representar.",
         "El correo introduce una solicitud de pago que no forma parte de una conversación verificada.",
@@ -45,10 +45,10 @@ const MOCK_ANALYSIS_FIXTURES: readonly MockAnalysisFixture[] = [
   {
     subjectMarker: "[PFI-DEMO-03]",
     response: {
+      status: "success",
       is_phishing: false,
-      confidence_score: 0.08,
-      raw_label:
-        "No se detectaron patrones relevantes de phishing en el correo analizado.",
+      score: 0.08,
+      class_id: 0,
       explanations: [
         "El remitente coincide con la identidad esperada para este tipo de comunicación.",
         "El mensaje mantiene un tono informativo, sin presión ni urgencia manipulativa.",
