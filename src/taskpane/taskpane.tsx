@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { getCurrentMessageMetadata, MailMetadata } from "../services/mailService";
+import { getCurrentMessageMetadata, MailMetadata, getMailboxItem } from "../services/mailService";
 import { analyzeEmail, AnalyzeResponse } from "../services/analysisService";
+import { extractSecurityFeatures } from "../services/securityService";
+import { SecurityFeatures } from "../types/securityTypes";
 import "./taskpane.css";
 
 type AnalysisResult = {
@@ -33,10 +35,33 @@ function buildAnalysisResult(result: AnalyzeResponse): AnalysisResult {
   };
 }
 
+function AuthBadge({ label, result }: { label: string; result: string }): JSX.Element {
+  let colorClasses = "bg-slate-100 text-slate-600";
+  let icon = "❓";
+
+  if (result === "pass") {
+    colorClasses = "bg-emerald-100 text-emerald-700";
+    icon = "✅";
+  } else if (result === "fail") {
+    colorClasses = "bg-rose-100 text-rose-700";
+    icon = "❌";
+  } else if (result === "softfail" || result === "neutral") {
+    colorClasses = "bg-amber-100 text-amber-700";
+    icon = "⚠️";
+  }
+
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${colorClasses}`}>
+      {icon} {label}: {result}
+    </span>
+  );
+}
+
 function TaskPane(): JSX.Element {
   const [officeReady, setOfficeReady] = useState(false);
   const [isLinked, setIsLinked] = useState(false);
   const [mailMetadata, setMailMetadata] = useState<MailMetadata | null>(null);
+  const [securityFeatures, setSecurityFeatures] = useState<SecurityFeatures | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
@@ -62,6 +87,17 @@ function TaskPane(): JSX.Element {
     let cancelled = false;
     setLoadError(null);
     setMailMetadata(null);
+    setSecurityFeatures(null);
+
+    const item = getMailboxItem();
+    if (item) {
+      extractSecurityFeatures(item)
+        .then((features) => {
+          if (!cancelled) setSecurityFeatures(features);
+        })
+        .catch(() => {});
+    }
+
 
     getCurrentMessageMetadata()
       .then((metadata) => {
@@ -99,7 +135,7 @@ function TaskPane(): JSX.Element {
     setAnalysisError(null);
 
     try {
-      const response = await analyzeEmail(mailMetadata.subject, mailMetadata.body, mailMetadata.sender);
+      const response = await analyzeEmail(mailMetadata.subject, mailMetadata.body, mailMetadata.sender, securityFeatures);
       setAnalysisResult(buildAnalysisResult(response));
     } catch (error) {
       setAnalysisError("No se pudo analizar el correo.");
@@ -177,6 +213,73 @@ function TaskPane(): JSX.Element {
               </div>
             )}
           </div>
+
+          {/* Security Indicators Section */}
+          {securityFeatures && securityFeatures.has_headers && (
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <h2 className="text-lg font-semibold">Indicadores de Seguridad</h2>
+
+              {/* Auth badges */}
+              <div className="mt-4 flex flex-wrap gap-2">
+                <AuthBadge label="SPF" result={securityFeatures.spf_result} />
+                <AuthBadge label="DKIM" result={securityFeatures.dkim_result} />
+                <AuthBadge label="DMARC" result={securityFeatures.dmarc_result} />
+              </div>
+
+              {/* Spoofing alerts */}
+              {!securityFeatures.from_return_path_match && (
+                <div className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">
+                  ⚠️ Return-Path no coincide con el remitente
+                </div>
+              )}
+              {!securityFeatures.from_reply_to_match && (
+                <div className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">
+                  ⚠️ Reply-To difiere del remitente
+                </div>
+              )}
+              {!securityFeatures.sender_vs_from_match && (
+                <div className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                  ℹ️ Email enviado en nombre de otra persona
+                </div>
+              )}
+
+              {/* Origin info */}
+              <div className="mt-4 grid grid-cols-2 gap-2 text-xs text-slate-600">
+                {securityFeatures.originating_country && (
+                  <div>
+                    <span className="font-semibold text-slate-400">País:</span>{" "}
+                    {securityFeatures.originating_country}
+                  </div>
+                )}
+                {securityFeatures.originating_ip && (
+                  <div>
+                    <span className="font-semibold text-slate-400">IP:</span>{" "}
+                    {securityFeatures.originating_ip}
+                  </div>
+                )}
+                <div>
+                  <span className="font-semibold text-slate-400">Auth:</span>{" "}
+                  {securityFeatures.auth_as}
+                </div>
+                <div>
+                  <span className="font-semibold text-slate-400">Hops:</span>{" "}
+                  {securityFeatures.received_hop_count}
+                </div>
+              </div>
+
+              {/* Attachments */}
+              {securityFeatures.attachment_count > 0 && (
+                <div className={`mt-3 rounded-lg px-3 py-2 text-xs ${
+                  securityFeatures.has_executable_attachment
+                    ? "bg-rose-50 text-rose-700"
+                    : "bg-slate-50 text-slate-600"
+                }`}>
+                  📎 {securityFeatures.attachment_count} adjunto{securityFeatures.attachment_count !== 1 ? "s" : ""}
+                  {securityFeatures.has_executable_attachment && " · ⚠️ Contiene ejecutable"}
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 className="text-lg font-semibold">Accion principal</h2>

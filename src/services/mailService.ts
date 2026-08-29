@@ -1,5 +1,6 @@
 export type MailMetadata = {
   sender: string;
+  senderEmail: string;
   subject: string;
   body: string;
   bodyPreview: string;
@@ -7,7 +8,7 @@ export type MailMetadata = {
 
 const BODY_PREVIEW_LIMIT = 280;
 
-function getMailboxItem(): Office.MessageRead | null {
+export function getMailboxItem(): Office.MessageRead | null {
   if (typeof Office === "undefined") {
     return null;
   }
@@ -65,11 +66,13 @@ export async function getCurrentMessageMetadata(): Promise<MailMetadata | null> 
   }
 
   const sender = getSenderLabel(item);
+  const senderEmail = item.from?.emailAddress || "";
   const subject = item.subject || "Sin asunto";
   const bodyText = await getBodyText(item);
 
   return {
     sender,
+    senderEmail,
     subject,
     body: bodyText,
     bodyPreview: normalizeBodyPreview(bodyText),
