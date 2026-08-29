@@ -1,3 +1,5 @@
+import { SecurityFeatures } from "../types/securityTypes";
+
 export type AnalyzeResponse = {
   is_phishing: boolean;
   confidence_score: number;
@@ -6,7 +8,7 @@ export type AnalyzeResponse = {
 
 const API_BASE_URL = process.env.API_BASE_URL || "http://127.0.0.1:8001";
 
-export async function analyzeEmail(subject: string, body: string, sender: string): Promise<AnalyzeResponse> {
+export async function analyzeEmail(subject: string, body: string, sender: string, securityFeatures: SecurityFeatures | null): Promise<AnalyzeResponse> {
   const response = await fetch(`${API_BASE_URL}/api/v1/analyze`, {
     method: "POST",
     headers: {
@@ -18,7 +20,8 @@ export async function analyzeEmail(subject: string, body: string, sender: string
         remitente_email: sender,
         remitente_nombre: ""
       },
-      contenido: body
+      contenido: body,
+      security_features: securityFeatures
     }),
   });
 
