@@ -12,7 +12,7 @@ export async function analyzeEmail(subject: string, body: string, sender: string
   const response = await fetch(`${API_BASE_URL}/api/v1/analyze`, {
     method: "POST",
     headers: {
-      "Content-Type": "application/json",
+      "Content-Type": "application/json",`n      "X-API-Key": process.env.API_KEY || "PHISHARG_DEV_KEY_123",
     },
     body: JSON.stringify({
       metadata: {
