@@ -41,6 +41,9 @@ module.exports = async (_env, argv) => {
         "process.env.API_BASE_URL": JSON.stringify(
           process.env.API_BASE_URL || "http://127.0.0.1:8001"
         ),
+        "process.env.API_KEY": JSON.stringify(
+          process.env.API_KEY || "PHISHARG_DEV_KEY_123"
+        ),
       }),
       new HtmlWebpackPlugin({
         filename: "taskpane.html",
