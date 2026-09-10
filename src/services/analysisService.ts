@@ -33,6 +33,7 @@ export async function analyzeEmail(subject: string, body: string, sender: string
     headers: {
       "Content-Type": "application/json",
       "X-API-Key": process.env.API_KEY || "PHISHARG_DEV_KEY_123",
+      "Bypass-Tunnel-Reminder": "true",
     },
     body: JSON.stringify({
       metadata: {
