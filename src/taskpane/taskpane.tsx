@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { getCurrentMessageMetadata, MailMetadata, getMailboxItem } from "../services/mailService";
-import { analyzeEmail, AnalyzeResponse } from "../services/analysisService";
+import { analyzeEmail, AnalyzeResponse, SlmExplanation } from "../services/analysisService";
 import { extractSecurityFeatures } from "../services/securityService";
 import { SecurityFeatures } from "../types/securityTypes";
 import "./taskpane.css";
@@ -10,6 +10,8 @@ type AnalysisResult = {
   threatLevel: string;
   explanation: string;
   phishScore: number;
+  intent?: string;
+  slmData?: SlmExplanation | null;
 };
 
 function buildAnalysisResult(result: AnalyzeResponse): AnalysisResult {
@@ -32,6 +34,8 @@ function buildAnalysisResult(result: AnalyzeResponse): AnalysisResult {
     threatLevel,
     explanation,
     phishScore: score,
+    intent: result.intent,
+    slmData: result.slm_parsed,
   };
 }
 
@@ -297,41 +301,146 @@ function TaskPane(): JSX.Element {
           </div>
 
           {(isAnalyzing || analysisResult || analysisError) && (
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h2 className="text-lg font-semibold">Resultado de la simulacion</h2>
+            <div className="space-y-4">
               {isAnalyzing ? (
-                <p className="mt-3 text-sm text-slate-600">
-                  Ejecutando modelos de riesgo...
-                </p>
+                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                  <p className="text-sm text-slate-600">
+                    Ejecutando modelos de riesgo...
+                  </p>
+                </div>
               ) : analysisError ? (
-                <p className="mt-3 text-sm text-rose-600">{analysisError}</p>
+                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                  <p className="text-sm text-rose-600">{analysisError}</p>
+                </div>
               ) : (
                 analysisResult && (
-                  <div className="mt-4 space-y-4">
-                    <div>
-                      <span className="text-xs font-semibold uppercase text-slate-400">
-                        Nivel de amenaza
-                      </span>
-                      <p className="mt-1 text-base font-semibold text-rose-600">
-                        {analysisResult.threatLevel}
-                      </p>
-                    </div>
-                    <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-sm text-emerald-900">
-                      {analysisResult.explanation}
-                    </div>
-                    <div>
-                      <div className="flex items-center justify-between text-xs font-semibold uppercase text-slate-400">
-                        <span>Phish-Score</span>
-                        <span>{analysisResult.phishScore}/100</span>
+                  <>
+                    {/* Veredicto principal */}
+                    <div className={`rounded-2xl border p-5 shadow-sm ${
+                      analysisResult.phishScore >= 50
+                        ? "border-rose-200 bg-rose-50"
+                        : "border-emerald-200 bg-emerald-50"
+                    }`}>
+                      <div className="flex items-center gap-3">
+                        <div className={`flex h-12 w-12 items-center justify-center rounded-full text-2xl ${
+                          analysisResult.phishScore >= 50 ? "bg-rose-100" : "bg-emerald-100"
+                        }`}>
+                          {analysisResult.phishScore >= 50 ? "🚨" : "✅"}
+                        </div>
+                        <div className="flex-1">
+                          <p className={`text-lg font-bold ${
+                            analysisResult.phishScore >= 50 ? "text-rose-700" : "text-emerald-700"
+                          }`}>
+                            {analysisResult.phishScore >= 50 ? "PHISHING DETECTADO" : "CORREO LEGÍTIMO"}
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            Riesgo: {analysisResult.phishScore}%
+                            {analysisResult.intent && ` · Intención: ${analysisResult.intent.replace(/_/g, " ")}`}
+                          </p>
+                        </div>
+                        <div className={`flex h-14 w-14 items-center justify-center rounded-full border-4 ${
+                          analysisResult.phishScore >= 50 ? "border-rose-400" : "border-emerald-400"
+                        }`}>
+                          <span className={`text-sm font-bold ${
+                            analysisResult.phishScore >= 50 ? "text-rose-600" : "text-emerald-600"
+                          }`}>
+                            {analysisResult.phishScore}%
+                          </span>
+                        </div>
                       </div>
-                      <div className="mt-2 h-2 w-full rounded-full bg-slate-200">
-                        <div
-                          className="h-2 rounded-full bg-rose-500"
-                          style={{ width: `${analysisResult.phishScore}%` }}
-                        />
-                      </div>
+                      {analysisResult.slmData && (
+                        <p className="mt-3 rounded-lg bg-white/60 p-3 text-sm text-slate-700">
+                          {analysisResult.slmData.summary}
+                        </p>
+                      )}
                     </div>
-                  </div>
+
+                    {/* Razones del SLM */}
+                    {analysisResult.slmData && analysisResult.slmData.reasons.length > 0 && (
+                      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                        <h3 className="text-sm font-semibold text-slate-800">
+                          📋 {analysisResult.phishScore >= 50 ? "¿Por qué es sospechoso?" : "Verificaciones realizadas"}
+                        </h3>
+                        <div className="mt-3 space-y-2.5">
+                          {analysisResult.slmData.reasons.map((reason, idx) => {
+                            const icons: Record<string, string> = {
+                              "slot.urgencia": "⚡",
+                              "slot.autoridad": "🏛️",
+                              "slot.financiero": "💰",
+                              "slot.amenaza": "⚠️",
+                              "slot.llamado_accion": "👆",
+                              "slot.premio_falso": "🎁",
+                              "slot.solicitud_datos": "🔑",
+                              "security.url_check": "🔗",
+                              "security.spf_fail": "⚙️",
+                              "security.ml_classifier": "🤖",
+                              "security.all_checks_pass": "✅",
+                              "security.intent_detection": "🎯",
+                            };
+                            const icon = icons[reason.evidence_id] || (analysisResult.phishScore >= 50 ? "🔴" : "✅");
+                            return (
+                              <div key={idx} className="flex items-start gap-2.5">
+                                <span className="mt-0.5 text-base">{icon}</span>
+                                <div>
+                                  <p className="text-sm text-slate-700">{reason.text}</p>
+                                  <p className="text-xs text-slate-400">{reason.evidence_id.replace(/\./g, " · ")}</p>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Acciones recomendadas del SLM */}
+                    {analysisResult.slmData && analysisResult.slmData.recommended_actions.length > 0 && (
+                      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                        <h3 className="text-sm font-semibold text-slate-800">
+                          🛡️ {analysisResult.phishScore >= 50 ? "¿Qué deberías hacer?" : "Recomendación"}
+                        </h3>
+                        <div className="mt-3 space-y-2">
+                          {analysisResult.slmData.recommended_actions.map((action, idx) => {
+                            const actionStyles: Record<string, { bg: string; icon: string }> = {
+                              do_not_click: { bg: "bg-rose-50 border-rose-200", icon: "🚫" },
+                              do_not_reply: { bg: "bg-orange-50 border-orange-200", icon: "🔇" },
+                              do_not_share_sensitive_information: { bg: "bg-amber-50 border-amber-200", icon: "🔒" },
+                              report_message: { bg: "bg-blue-50 border-blue-200", icon: "📢" },
+                              verify_via_official_channel: { bg: "bg-indigo-50 border-indigo-200", icon: "📞" },
+                              no_action_needed: { bg: "bg-emerald-50 border-emerald-200", icon: "👍" },
+                            };
+                            const style = actionStyles[action.code] || { bg: "bg-slate-50 border-slate-200", icon: "ℹ️" };
+                            return (
+                              <div key={idx} className={`flex items-center gap-3 rounded-xl border p-3 ${style.bg}`}>
+                                <span className="text-xl">{style.icon}</span>
+                                <p className="text-sm text-slate-700">{action.text}</p>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Fallback: si no hay SLM data, mostrar el resultado plano */}
+                    {!analysisResult.slmData && (
+                      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                        <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-sm text-emerald-900">
+                          {analysisResult.explanation}
+                        </div>
+                        <div className="mt-4">
+                          <div className="flex items-center justify-between text-xs font-semibold uppercase text-slate-400">
+                            <span>Phish-Score</span>
+                            <span>{analysisResult.phishScore}/100</span>
+                          </div>
+                          <div className="mt-2 h-2 w-full rounded-full bg-slate-200">
+                            <div
+                              className="h-2 rounded-full bg-rose-500"
+                              style={{ width: `${analysisResult.phishScore}%` }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )
               )}
             </div>

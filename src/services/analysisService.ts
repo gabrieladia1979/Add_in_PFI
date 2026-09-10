@@ -1,10 +1,28 @@
 import { SecurityFeatures } from "../types/securityTypes";
 
+export type SlmReason = {
+  evidence_id: string;
+  text: string;
+};
+
+export type SlmAction = {
+  code: string;
+  text: string;
+};
+
+export type SlmExplanation = {
+  summary: string;
+  reasons: SlmReason[];
+  recommended_actions: SlmAction[];
+};
+
 export type AnalyzeResponse = {
   is_phishing: boolean;
   confidence_score: number;
   raw_label: string;
+  intent?: string;
   slm_explanation?: string;
+  slm_parsed?: SlmExplanation | null;
 };
 
 const API_BASE_URL = process.env.API_BASE_URL || "http://127.0.0.1:8001";
@@ -33,11 +51,23 @@ export async function analyzeEmail(subject: string, body: string, sender: string
   }
 
   const data = await response.json();
-  
+
+  // Intentar parsear el JSON del SLM
+  let slmParsed: SlmExplanation | null = null;
+  if (data.slm_explanation) {
+    try {
+      slmParsed = JSON.parse(data.slm_explanation);
+    } catch {
+      slmParsed = null;
+    }
+  }
+
   return {
     is_phishing: data.is_phishing,
     confidence_score: data.risk_score,
     raw_label: data.reason,
-    slm_explanation: data.slm_explanation
+    intent: data.intent,
+    slm_explanation: data.slm_explanation,
+    slm_parsed: slmParsed,
   };
 }
