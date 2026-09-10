@@ -25,7 +25,7 @@ export type AnalyzeResponse = {
   slm_parsed?: SlmExplanation | null;
 };
 
-const API_BASE_URL = process.env.API_BASE_URL || "https://phisharg-api.loca.lt";
+const API_BASE_URL = "https://blog-joy-reform-spanking.trycloudflare.com";
 
 export async function analyzeEmail(subject: string, body: string, sender: string, securityFeatures: SecurityFeatures | null): Promise<AnalyzeResponse> {
   const response = await fetch(`${API_BASE_URL}/api/v1/analyze`, {
@@ -33,7 +33,6 @@ export async function analyzeEmail(subject: string, body: string, sender: string
     headers: {
       "Content-Type": "application/json",
       "X-API-Key": process.env.API_KEY || "PHISHARG_DEV_KEY_123",
-      "Bypass-Tunnel-Reminder": "true",
     },
     body: JSON.stringify({
       metadata: {
