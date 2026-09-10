@@ -64,6 +64,13 @@ module.exports = async (_env, argv) => {
         "Access-Control-Allow-Origin": "*",
       },
       https: true,
+      proxy: [
+        {
+          context: ["/api"],
+          target: "http://127.0.0.1:8001",
+          changeOrigin: true,
+        },
+      ],
     },
   };
 };
