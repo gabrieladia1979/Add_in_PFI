@@ -1,43 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { getCurrentMessageMetadata, MailMetadata, getMailboxItem } from "../services/mailService";
-import { analyzeEmail, AnalyzeResponse, SlmExplanation } from "../services/analysisService";
+import { analyzeEmail } from "../services/analysisService";
+import { buildAnalysisResult, AnalysisResult } from "../services/analysisResult";
 import { extractSecurityFeatures } from "../services/securityService";
 import { SecurityFeatures } from "../types/securityTypes";
 import "./taskpane.css";
-
-type AnalysisResult = {
-  threatLevel: string;
-  explanation: string;
-  phishScore: number;
-  intent?: string;
-  slmData?: SlmExplanation | null;
-};
-
-function buildAnalysisResult(result: AnalyzeResponse): AnalysisResult {
-  const score = Math.round((result.confidence_score || 0) * 100);
-
-  let threatLevel = "Bajo";
-  if (result.is_phishing && score >= 75) {
-    threatLevel = "Peligro Critico";
-  } else if (result.is_phishing && score >= 50) {
-    threatLevel = "Alto";
-  } else if (result.is_phishing) {
-    threatLevel = "Medio";
-  }
-
-  const explanation = result.raw_label || (result.is_phishing
-    ? "Se detectaron patrones similares a phishing. Revisa remitente, enlaces y urgencia."
-    : "No se detectaron patrones fuertes de phishing, pero revisa enlaces y remitente.");
-
-  return {
-    threatLevel,
-    explanation,
-    phishScore: score,
-    intent: result.intent,
-    slmData: result.slm_parsed,
-  };
-}
 
 function AuthBadge({ label, result }: { label: string; result: string }): JSX.Element {
   let colorClasses = "bg-slate-100 text-slate-600";
@@ -317,21 +285,21 @@ function TaskPane(): JSX.Element {
                   <>
                     {/* Veredicto principal */}
                     <div className={`rounded-2xl border p-5 shadow-sm ${
-                      analysisResult.phishScore >= 50
+                      analysisResult.isPhishing
                         ? "border-rose-200 bg-rose-50"
                         : "border-emerald-200 bg-emerald-50"
                     }`}>
                       <div className="flex items-center gap-3">
                         <div className={`flex h-12 w-12 items-center justify-center rounded-full text-2xl ${
-                          analysisResult.phishScore >= 50 ? "bg-rose-100" : "bg-emerald-100"
+                          analysisResult.isPhishing ? "bg-rose-100" : "bg-emerald-100"
                         }`}>
-                          {analysisResult.phishScore >= 50 ? "🚨" : "✅"}
+                          {analysisResult.isPhishing ? "🚨" : "✅"}
                         </div>
                         <div className="flex-1">
                           <p className={`text-lg font-bold ${
-                            analysisResult.phishScore >= 50 ? "text-rose-700" : "text-emerald-700"
+                            analysisResult.isPhishing ? "text-rose-700" : "text-emerald-700"
                           }`}>
-                            {analysisResult.phishScore >= 50 ? "PHISHING DETECTADO" : "CORREO LEGÍTIMO"}
+                            {analysisResult.isPhishing ? "PHISHING DETECTADO" : "CORREO LEGÍTIMO"}
                           </p>
                           <p className="text-xs text-slate-500">
                             Riesgo: {analysisResult.phishScore}%
@@ -339,10 +307,10 @@ function TaskPane(): JSX.Element {
                           </p>
                         </div>
                         <div className={`flex h-14 w-14 items-center justify-center rounded-full border-4 ${
-                          analysisResult.phishScore >= 50 ? "border-rose-400" : "border-emerald-400"
+                          analysisResult.isPhishing ? "border-rose-400" : "border-emerald-400"
                         }`}>
                           <span className={`text-sm font-bold ${
-                            analysisResult.phishScore >= 50 ? "text-rose-600" : "text-emerald-600"
+                            analysisResult.isPhishing ? "text-rose-600" : "text-emerald-600"
                           }`}>
                             {analysisResult.phishScore}%
                           </span>
@@ -355,11 +323,25 @@ function TaskPane(): JSX.Element {
                       )}
                     </div>
 
+                    {analysisResult.contentSignals.length > 0 && (
+                      <div className="rounded-2xl border border-rose-200 bg-rose-50 p-5 shadow-sm">
+                        <h3 className="text-sm font-semibold text-rose-800">Señales detectadas en el mensaje</h3>
+                        <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-slate-700">
+                          {analysisResult.contentSignals.map((signal) => (
+                            <li key={signal.rule}>{signal.description}</li>
+                          ))}
+                        </ul>
+                        <p className="mt-3 text-sm font-medium text-rose-800">
+                          No compartas claves ni realices el pago solicitado. Verificá la solicitud por un canal conocido, iniciado por vos.
+                        </p>
+                      </div>
+                    )}
+
                     {/* Razones del SLM */}
                     {analysisResult.slmData && analysisResult.slmData.reasons.length > 0 && (
                       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                         <h3 className="text-sm font-semibold text-slate-800">
-                          📋 {analysisResult.phishScore >= 50 ? "¿Por qué es sospechoso?" : "Verificaciones realizadas"}
+                          📋 {analysisResult.isPhishing ? "¿Por qué es sospechoso?" : "Verificaciones realizadas"}
                         </h3>
                         <div className="mt-3 space-y-2.5">
                           {analysisResult.slmData.reasons.map((reason, idx) => {
@@ -377,7 +359,7 @@ function TaskPane(): JSX.Element {
                               "security.all_checks_pass": "✅",
                               "security.intent_detection": "🎯",
                             };
-                            const icon = icons[reason.evidence_id] || (analysisResult.phishScore >= 50 ? "🔴" : "✅");
+                            const icon = icons[reason.evidence_id] || (analysisResult.isPhishing ? "🔴" : "✅");
                             return (
                               <div key={idx} className="flex items-start gap-2.5">
                                 <span className="mt-0.5 text-base">{icon}</span>
@@ -396,7 +378,7 @@ function TaskPane(): JSX.Element {
                     {analysisResult.slmData && analysisResult.slmData.recommended_actions.length > 0 && (
                       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                         <h3 className="text-sm font-semibold text-slate-800">
-                          🛡️ {analysisResult.phishScore >= 50 ? "¿Qué deberías hacer?" : "Recomendación"}
+                          🛡️ {analysisResult.isPhishing ? "¿Qué deberías hacer?" : "Recomendación"}
                         </h3>
                         <div className="mt-3 space-y-2">
                           {analysisResult.slmData.recommended_actions.map((action, idx) => {
