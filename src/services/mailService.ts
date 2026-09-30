@@ -78,3 +78,36 @@ export async function getCurrentMessageMetadata(): Promise<MailMetadata | null> 
     bodyPreview: normalizeBodyPreview(bodyText),
   };
 }
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (character) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+  })[character] || character);
+}
+
+/** Abre un borrador para el área de seguridad. El usuario revisa y envía el reporte. */
+export function prepareIncidentReport(recipient: string, metadata: MailMetadata, riskScore?: number): void {
+  const item = getMailboxItem();
+  if (!item?.itemId) {
+    throw new Error("No se pudo adjuntar el correo original. Abrí un mensaje y volvé a intentar.");
+  }
+
+  const summary = riskScore === undefined
+    ? "Reporte manual de un correo sospechoso."
+    : `Resultado de PhishARG: riesgo estimado ${Math.round(riskScore)} %. Revisar el correo original adjunto.`;
+
+  Office.context.mailbox.displayNewMessageForm({
+    toRecipients: [recipient],
+    subject: `Reporte de posible phishing: ${metadata.subject}`.slice(0, 255),
+    htmlBody: `<p>Solicito revisar este posible incidente de phishing.</p><p>${escapeHtml(summary)}</p><p>Remitente: ${escapeHtml(metadata.senderEmail || metadata.sender)}<br>Asunto: ${escapeHtml(metadata.subject)}</p><p>El correo original está adjunto. Revisá el destinatario antes de enviarlo.</p>`,
+    attachments: [{
+      type: Office.MailboxEnums.AttachmentType.Item,
+      name: "Correo sospechoso",
+      itemId: item.itemId,
+    }],
+  });
+}

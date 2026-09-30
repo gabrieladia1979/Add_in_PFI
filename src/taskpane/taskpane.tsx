@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { getCurrentMessageMetadata, MailMetadata, getMailboxItem } from "../services/mailService";
+import { getCurrentMessageMetadata, MailMetadata, getMailboxItem, prepareIncidentReport } from "../services/mailService";
 import { analyzeEmail } from "../services/analysisService";
 import { buildAnalysisResult, AnalysisResult } from "../services/analysisResult";
 import { extractSecurityFeatures } from "../services/securityService";
@@ -38,6 +38,8 @@ function TaskPane(): JSX.Element {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [reportRecipient, setReportRecipient] = useState("");
+  const [reportStatus, setReportStatus] = useState<string | null>(null);
 
   useEffect(() => {
     if (typeof Office === "undefined") {
@@ -113,6 +115,22 @@ function TaskPane(): JSX.Element {
       setAnalysisError("No se pudo analizar el correo.");
     } finally {
       setIsAnalyzing(false);
+    }
+  };
+
+  const handleReport = (): void => {
+    setReportStatus(null);
+    if (!mailMetadata) return;
+    const recipient = reportRecipient.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient)) {
+      setReportStatus("Ingresá el correo del área de seguridad de tu organización.");
+      return;
+    }
+    try {
+      prepareIncidentReport(recipient, mailMetadata, analysisResult?.phishScore);
+      setReportStatus("Se abrió un borrador en Outlook. Revisalo y pulsá Enviar para completar el reporte.");
+    } catch (error) {
+      setReportStatus(error instanceof Error ? error.message : "No se pudo preparar el reporte.");
     }
   };
 
@@ -266,6 +284,33 @@ function TaskPane(): JSX.Element {
             >
               {isAnalyzing ? "Analizando..." : "Analizar Amenaza con IA"}
             </button>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 className="text-lg font-semibold">Reportar correo sospechoso</h2>
+            <p className="mt-2 text-sm text-slate-600">
+              Prepará un mensaje para el área de seguridad con el correo original adjunto. Outlook te pedirá revisar y enviar el reporte.
+            </p>
+            <label className="mt-4 block text-xs font-semibold text-slate-600" htmlFor="report-recipient">
+              Correo del área de seguridad
+            </label>
+            <input
+              id="report-recipient"
+              type="email"
+              value={reportRecipient}
+              onChange={(event) => setReportRecipient(event.target.value)}
+              placeholder="seguridad@tuempresa.com"
+              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            />
+            <button
+              className="mt-3 w-full rounded-xl bg-blue-700 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+              type="button"
+              onClick={handleReport}
+              disabled={!mailMetadata}
+            >
+              Preparar reporte en Outlook
+            </button>
+            {reportStatus && <p role="status" className="mt-3 text-sm text-slate-700">{reportStatus}</p>}
           </div>
 
           {(isAnalyzing || analysisResult || analysisError) && (
