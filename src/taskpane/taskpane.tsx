@@ -99,6 +99,16 @@ function TaskPane(): JSX.Element {
     setIsLinked(true);
   };
 
+  const handleUnlink = (): void => {
+    setIsLinked(false);
+    setMailMetadata(null);
+    setSecurityFeatures(null);
+    setAnalysisResult(null);
+    setLoadError(null);
+    setAnalysisError(null);
+    setReportStatus(null);
+  };
+
   const handleAnalyze = async (): Promise<void> => {
     if (!mailMetadata) {
       return;
@@ -472,6 +482,15 @@ function TaskPane(): JSX.Element {
               )}
             </div>
           )}
+          <div className="pt-4 border-t border-slate-200 flex justify-center">
+            <button
+              type="button"
+              onClick={handleUnlink}
+              className="text-xs font-semibold text-slate-500 hover:text-rose-600 transition"
+            >
+              Desvincular cuenta de Outlook
+            </button>
+          </div>
         </section>
       )}
     </div>
