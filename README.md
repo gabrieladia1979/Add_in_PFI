@@ -14,7 +14,7 @@ Skeleton inicial del add-in de Outlook para el proyecto de ciberdefensa con XAI.
 
 ## Backend y veredicto
 
-`API_BASE_URL` se incorpora durante la compilación. Si no se configura, se usa `http://127.0.0.1:8001` para desarrollo. Para el complemento publicado, configurar la URL HTTPS del backend actualizado en el entorno de compilación y volver a compilar/publicar. Ya no se utiliza un túnel temporal fijo dentro del código.
+`API_BASE_URL` se incorpora durante la compilación. En desarrollo, si no se configura, el panel llama a `/api` en el servidor local HTTPS; el proxy de webpack reenvía internamente esas solicitudes al backend local. Para compilar la versión publicada, `API_BASE_URL` es obligatoria y debe apuntar a la URL HTTPS real del backend. Cuando el dominio y su certificado estén configurados, definir esa variable y volver a compilar/publicar.
 
 El panel respeta `is_phishing` enviado por el servidor y muestra `content_signals` aunque el SLM no devuelva JSON. No vuelve a clasificar un mensaje por superar 50% de score.
 
