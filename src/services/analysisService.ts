@@ -26,7 +26,8 @@ export type AnalyzeResponse = {
   content_signals?: { rule: string; description: string }[];
 };
 
-const API_BASE_URL = process.env.API_BASE_URL || "http://127.0.0.1:8001";
+// En desarrollo, la ruta relativa pasa por el proxy HTTPS del dev server.
+const API_BASE_URL = process.env.API_BASE_URL || "";
 
 export async function analyzeEmail(subject: string, body: string, sender: string, securityFeatures: SecurityFeatures | null): Promise<AnalyzeResponse> {
   const response = await fetch(`${API_BASE_URL}/api/v1/analyze`, {
