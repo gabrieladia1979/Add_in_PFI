@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { getCurrentMessageMetadata, MailMetadata, getMailboxItem, prepareIncidentReport } from "../services/mailService";
 import { analyzeEmail } from "../services/analysisService";
@@ -40,6 +40,7 @@ function TaskPane(): JSX.Element {
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [reportRecipient, setReportRecipient] = useState("");
   const [reportStatus, setReportStatus] = useState<string | null>(null);
+  const analysisRequestId = useRef(0);
 
   useEffect(() => {
     if (typeof Office === "undefined") {
@@ -100,12 +101,16 @@ function TaskPane(): JSX.Element {
   };
 
   const handleUnlink = (): void => {
+    // Ignore responses from analyses started before this local UI reset.
+    analysisRequestId.current += 1;
     setIsLinked(false);
     setMailMetadata(null);
     setSecurityFeatures(null);
     setAnalysisResult(null);
     setLoadError(null);
     setAnalysisError(null);
+    setIsAnalyzing(false);
+    setReportRecipient("");
     setReportStatus(null);
   };
 
@@ -114,17 +119,24 @@ function TaskPane(): JSX.Element {
       return;
     }
 
+    const requestId = ++analysisRequestId.current;
     setIsAnalyzing(true);
     setAnalysisResult(null);
     setAnalysisError(null);
 
     try {
       const response = await analyzeEmail(mailMetadata.subject, mailMetadata.body, mailMetadata.sender, securityFeatures);
-      setAnalysisResult(buildAnalysisResult(response));
+      if (requestId === analysisRequestId.current) {
+        setAnalysisResult(buildAnalysisResult(response));
+      }
     } catch (error) {
-      setAnalysisError("No se pudo analizar el correo.");
+      if (requestId === analysisRequestId.current) {
+        setAnalysisError("No se pudo analizar el correo.");
+      }
     } finally {
-      setIsAnalyzing(false);
+      if (requestId === analysisRequestId.current) {
+        setIsAnalyzing(false);
+      }
     }
   };
 
