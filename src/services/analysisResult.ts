@@ -1,4 +1,4 @@
-import type { AnalyzeResponse, SlmExplanation } from "./analysisService";
+import type { AnalyzeResponse, HybridXai, SlmExplanation } from "./analysisService";
 
 export type AnalysisResult = {
   isPhishing: boolean;
@@ -8,6 +8,8 @@ export type AnalysisResult = {
   phishScore: number;
   intent?: string;
   slmData?: SlmExplanation | null;
+  decisionSource?: string;
+  hybridXai?: HybridXai;
 };
 
 export function buildAnalysisResult(result: AnalyzeResponse): AnalysisResult {
@@ -34,6 +36,8 @@ export function buildAnalysisResult(result: AnalyzeResponse): AnalysisResult {
     phishScore: score,
     intent: result.intent,
     slmData: result.slm_parsed,
+    decisionSource: result.decision_source,
+    hybridXai: result.hybrid_xai,
   };
 }
 

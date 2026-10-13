@@ -45,13 +45,39 @@ test('maps backend evidence without requiring SLM JSON and uses configured backe
         is_phishing: true, risk_score: 0.95, reason: 'Pedido de claves',
         slm_explanation: 'Fallback de texto',
         content_signals: [{ rule: 'credential_disclosure_request', description: 'Pedido de credenciales' }],
+        hybrid_xai: {
+          scope: 'raw_hybrid_model_score', supports_final_verdict: true,
+          technical_status: 'available',
+          technical_attributions: [{ feature: 'secret_count', value: 1, contribution_log_odds: 0.8 }],
+          lime_status: 'unreliable', lime_word_attributions: [{ word: 'clave', weight: 0.2 }],
+        },
       }) };
     },
   });
   const result = await analyzeEmail('Asunto', 'Cuerpo', 'sender@example.invalid', null);
-  assert.equal(requestedUrl, 'https://backend.example.invalid/api/v1/analyze');
+  assert.equal(requestedUrl, 'https://backend.example.invalid/api/v1/analyze/hybrid');
   assert.equal(requestedPayload.metadata.remitente_email, 'sender@example.invalid');
   assert.equal(result.slm_parsed, null);
   assert.equal(result.content_signals[0].rule, 'credential_disclosure_request');
   assert.equal(result.is_phishing, true);
+  assert.equal(result.hybrid_xai.technical_attributions[0].feature, 'secret_count');
+  assert.equal(result.hybrid_xai.lime_word_attributions.length, 0);
+});
+
+test('rejects a backend that lacks the Hybrid XAI contract', async () => {
+  const { analyzeEmail } = loadService('analysisService', {
+    fetch: async () => ({ ok: true, json: async () => ({
+      is_phishing: false, risk_score: 0.1, reason: 'LEGÍTIMO',
+    }) }),
+  });
+  await assert.rejects(analyzeEmail('Asunto', 'Cuerpo', 'sender@example.invalid', null),
+    /contrato XAI de Hybrid/);
+});
+
+test('reports a missing Hybrid route instead of silently using the old classifier', async () => {
+  const { analyzeEmail } = loadService('analysisService', {
+    fetch: async () => ({ ok: false, status: 404 }),
+  });
+  await assert.rejects(analyzeEmail('Asunto', 'Cuerpo', 'sender@example.invalid', null),
+    /no tiene la ruta Hybrid/);
 });

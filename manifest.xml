@@ -81,7 +81,7 @@
         <bt:String id="buttonTitle" DefaultValue="Analizar amenaza" />
       </bt:ShortStrings>
       <bt:LongStrings>
-        <bt:String id="buttonDescription" DefaultValue="Abre el panel de ciberdefensa y simula el analisis XAI." />
+        <bt:String id="buttonDescription" DefaultValue="Abre el panel de ciberdefensa y analiza correos con Hybrid." />
       </bt:LongStrings>
     </Resources>
   </VersionOverrides>

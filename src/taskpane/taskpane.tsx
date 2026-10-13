@@ -7,6 +7,18 @@ import { extractSecurityFeatures } from "../services/securityService";
 import { SecurityFeatures } from "../types/securityTypes";
 import "./taskpane.css";
 
+const TECHNICAL_LABELS: Record<string, string> = {
+  http_count: "enlaces HTTP",
+  ip_host_count: "enlaces con dirección IP",
+  brand_external_count: "dominios que imitan marcas",
+  punycode_count: "dominios Punycode",
+  urgency_count: "expresiones de urgencia",
+  secret_count: "menciones de credenciales",
+  payment_count: "menciones de pagos",
+  threat_count: "expresiones de amenaza",
+  action_count: "solicitudes de acción",
+};
+
 function AuthBadge({ label, result }: { label: string; result: string }): JSX.Element {
   let colorClasses = "bg-slate-100 text-slate-600";
   let icon = "❓";
@@ -125,13 +137,13 @@ function TaskPane(): JSX.Element {
     setAnalysisError(null);
 
     try {
-      const response = await analyzeEmail(mailMetadata.subject, mailMetadata.body, mailMetadata.sender, securityFeatures);
+      const response = await analyzeEmail(mailMetadata.subject, mailMetadata.body, mailMetadata.senderEmail, securityFeatures);
       if (requestId === analysisRequestId.current) {
         setAnalysisResult(buildAnalysisResult(response));
       }
     } catch (error) {
       if (requestId === analysisRequestId.current) {
-        setAnalysisError("No se pudo analizar el correo.");
+        setAnalysisError(error instanceof Error ? error.message : "No se pudo analizar el correo.");
       }
     } finally {
       if (requestId === analysisRequestId.current) {
@@ -156,6 +168,18 @@ function TaskPane(): JSX.Element {
     }
   };
 
+  const technicalSignals = analysisResult?.hybridXai?.technical_status === "available" &&
+    analysisResult.hybridXai.supports_final_verdict
+    ? analysisResult.hybridXai.technical_attributions
+        .filter((item) => item.value > 0 && TECHNICAL_LABELS[item.feature] &&
+          (analysisResult.isPhishing ? item.contribution_log_odds > 0 : item.contribution_log_odds < 0))
+        .slice(0, 3)
+    : [];
+  const limeWords = analysisResult?.hybridXai?.lime_status === "reliable" &&
+    analysisResult.hybridXai.supports_final_verdict
+    ? analysisResult.hybridXai.lime_word_attributions.filter((item) => item.weight > 0).slice(0, 5)
+    : [];
+
   if (!officeReady) {
     return (
       <div className="min-h-screen bg-slate-50 px-6 py-8 text-slate-900">
@@ -172,7 +196,7 @@ function TaskPane(): JSX.Element {
         </p>
         <h1 className="mt-2 text-2xl font-semibold">Panel de Defensa Proactiva</h1>
         <p className="mt-2 text-sm text-slate-600">
-          Educa en tiempo real y explica con XAI por que un correo es sospechoso.
+          Analiza el correo con el clasificador Hybrid y muestra evidencia explicativa cuando está disponible.
         </p>
       </header>
 
@@ -296,7 +320,7 @@ function TaskPane(): JSX.Element {
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 className="text-lg font-semibold">Accion principal</h2>
             <p className="mt-2 text-sm text-slate-600">
-              Ejecuta el analisis simulado con IA para generar explicaciones XAI.
+              Analizá el correo abierto con el clasificador Hybrid. La explicación por palabras puede demorar más que el veredicto.
             </p>
             <button
               className="mt-4 w-full rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
@@ -369,7 +393,7 @@ function TaskPane(): JSX.Element {
                             {analysisResult.isPhishing ? "PHISHING DETECTADO" : "CORREO LEGÍTIMO"}
                           </p>
                           <p className="text-xs text-slate-500">
-                            Riesgo: {analysisResult.phishScore}%
+                            Índice de riesgo: {analysisResult.phishScore}/100
                             {analysisResult.intent && ` · Intención: ${analysisResult.intent.replace(/_/g, " ")}`}
                           </p>
                         </div>
@@ -404,7 +428,64 @@ function TaskPane(): JSX.Element {
                       </div>
                     )}
 
-                    {/* Razones del SLM */}
+                    {analysisResult.hybridXai && (
+                      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                        <h3 className="text-sm font-semibold text-slate-800">
+                          {analysisResult.decisionSource === "hybrid_critical_security_rule" ? "Origen del veredicto" : "Evidencia del modelo Hybrid"}
+                        </h3>
+                        {analysisResult.decisionSource === "hybrid_critical_security_rule" ? (
+                          <p className="mt-2 text-sm text-slate-600">
+                            Una regla crítica determinó la alerta sin ejecutar el clasificador.
+                          </p>
+                        ) : (
+                          <>
+                            {!analysisResult.hybridXai.supports_final_verdict && (
+                              <p className="mt-2 text-sm text-amber-800">
+                                Las reglas modificaron el veredicto. Las atribuciones del modelo no explican por sí solas la decisión final.
+                              </p>
+                            )}
+                            {analysisResult.decisionSource === "hybrid_content_security_rule" && (
+                              <p className="mt-2 text-sm text-slate-600">
+                                Una regla de contenido reforzó la alerta. Las atribuciones se refieren al puntaje bruto del modelo.
+                              </p>
+                            )}
+                            {analysisResult.hybridXai.technical_status === "error" && (
+                              <p className="mt-2 text-sm text-slate-600">No se pudieron calcular las contribuciones técnicas del modelo.</p>
+                            )}
+                            {technicalSignals.length > 0 && (
+                              <div className="mt-3">
+                                <p className="text-xs font-semibold uppercase text-slate-500">Variables técnicas influyentes</p>
+                                <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-700">
+                                  {technicalSignals.map((item) => <li key={item.feature}>{TECHNICAL_LABELS[item.feature]}</li>)}
+                                </ul>
+                              </div>
+                            )}
+                            {limeWords.length > 0 && (
+                                <div className="mt-3">
+                                  <p className="text-xs font-semibold uppercase text-slate-500">Palabras asociadas por LIME con mayor riesgo</p>
+                                  <div className="mt-2 flex flex-wrap gap-2">
+                                    {limeWords.map((item) => (
+                                      <span key={item.word} className="rounded-full bg-amber-50 px-2.5 py-1 text-xs text-amber-900">
+                                        {item.word}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            {analysisResult.hybridXai.lime_status === "unreliable" && (
+                              <p className="mt-3 text-sm text-slate-600">
+                                La explicación por palabras no superó las comprobaciones de fidelidad y se omitió.
+                              </p>
+                            )}
+                            {analysisResult.hybridXai.lime_status === "error" && (
+                              <p className="mt-3 text-sm text-slate-600">No se pudo calcular la explicación por palabras.</p>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Motivos de la explicación validada */}
                     {analysisResult.slmData && analysisResult.slmData.reasons.length > 0 && (
                       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                         <h3 className="text-sm font-semibold text-slate-800">
@@ -441,7 +522,7 @@ function TaskPane(): JSX.Element {
                       </div>
                     )}
 
-                    {/* Acciones recomendadas del SLM */}
+                    {/* Acciones recomendadas */}
                     {analysisResult.slmData && analysisResult.slmData.recommended_actions.length > 0 && (
                       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                         <h3 className="text-sm font-semibold text-slate-800">
