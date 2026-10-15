@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { getCurrentMessageMetadata, MailMetadata, getMailboxItem, prepareIncidentReport } from "../services/mailService";
-import { analyzeEmail } from "../services/analysisService";
+import { analyzeEmail, AnalyzeResponse } from "../services/analysisService";
 import { buildAnalysisResult, AnalysisResult } from "../services/analysisResult";
 import { extractSecurityFeatures } from "../services/securityService";
 import { SecurityFeatures } from "../types/securityTypes";
@@ -18,6 +18,9 @@ const TECHNICAL_LABELS: Record<string, string> = {
   threat_count: "expresiones de amenaza",
   action_count: "solicitudes de acción",
 };
+
+const VERDICT_TIMEOUT_MS = 30_000;
+const EXPLANATION_TIMEOUT_MS = 60_000;
 
 function AuthBadge({ label, result }: { label: string; result: string }): JSX.Element {
   let colorClasses = "bg-slate-100 text-slate-600";
@@ -48,11 +51,30 @@ function TaskPane(): JSX.Element {
   const [securityFeatures, setSecurityFeatures] = useState<SecurityFeatures | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isEnriching, setIsEnriching] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [explanationWarning, setExplanationWarning] = useState<string | null>(null);
   const [reportRecipient, setReportRecipient] = useState("");
   const [reportStatus, setReportStatus] = useState<string | null>(null);
   const analysisRequestId = useRef(0);
+  const activeAnalysisController = useRef<AbortController | null>(null);
+
+  useEffect(() => () => activeAnalysisController.current?.abort(), []);
+
+  const requestAnalysis = async (metadata: MailMetadata, features: SecurityFeatures | null,
+    quick: boolean, timeoutMs: number): Promise<AnalyzeResponse> => {
+    const controller = new AbortController();
+    activeAnalysisController.current = controller;
+    const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      return await analyzeEmail(metadata.subject, metadata.body, metadata.senderEmail,
+        features, quick, controller.signal);
+    } finally {
+      window.clearTimeout(timeoutId);
+      if (activeAnalysisController.current === controller) activeAnalysisController.current = null;
+    }
+  };
 
   useEffect(() => {
     if (typeof Office === "undefined") {
@@ -115,6 +137,7 @@ function TaskPane(): JSX.Element {
   const handleUnlink = (): void => {
     // Ignore responses from analyses started before this local UI reset.
     analysisRequestId.current += 1;
+    activeAnalysisController.current?.abort();
     setIsLinked(false);
     setMailMetadata(null);
     setSecurityFeatures(null);
@@ -122,6 +145,8 @@ function TaskPane(): JSX.Element {
     setLoadError(null);
     setAnalysisError(null);
     setIsAnalyzing(false);
+    setIsEnriching(false);
+    setExplanationWarning(null);
     setReportRecipient("");
     setReportStatus(null);
   };
@@ -132,18 +157,43 @@ function TaskPane(): JSX.Element {
     }
 
     const requestId = ++analysisRequestId.current;
+    activeAnalysisController.current?.abort();
     setIsAnalyzing(true);
     setAnalysisResult(null);
     setAnalysisError(null);
+    setIsEnriching(false);
+    setExplanationWarning(null);
 
     try {
-      const response = await analyzeEmail(mailMetadata.subject, mailMetadata.body, mailMetadata.senderEmail, securityFeatures);
+      const quick = await requestAnalysis(mailMetadata, securityFeatures, true, VERDICT_TIMEOUT_MS);
       if (requestId === analysisRequestId.current) {
-        setAnalysisResult(buildAnalysisResult(response));
+        setAnalysisResult(buildAnalysisResult(quick));
+        setIsAnalyzing(false);
+        setIsEnriching(true);
+      } else {
+        return;
+      }
+      try {
+        const complete = await requestAnalysis(mailMetadata, securityFeatures, false, EXPLANATION_TIMEOUT_MS);
+        if (requestId !== analysisRequestId.current) return;
+        if (complete.is_phishing !== quick.is_phishing ||
+            complete.confidence_score !== quick.confidence_score ||
+            complete.decision_source !== quick.decision_source) {
+          throw new Error("El análisis ampliado no coincidió con el veredicto inicial.");
+        }
+        setAnalysisResult(buildAnalysisResult(complete));
+      } catch {
+        if (requestId === analysisRequestId.current) {
+          setExplanationWarning("La explicación ampliada no llegó dentro de 60 segundos o falló. Se conserva el veredicto y la recomendación inicial.");
+        }
+      } finally {
+        if (requestId === analysisRequestId.current) setIsEnriching(false);
       }
     } catch (error) {
       if (requestId === analysisRequestId.current) {
-        setAnalysisError(error instanceof Error ? error.message : "No se pudo analizar el correo.");
+        setAnalysisError(error instanceof Error && error.name === "AbortError"
+          ? "El veredicto no llegó dentro de 30 segundos. Intentá nuevamente."
+          : error instanceof Error ? error.message : "No se pudo analizar el correo.");
       }
     } finally {
       if (requestId === analysisRequestId.current) {
@@ -204,14 +254,14 @@ function TaskPane(): JSX.Element {
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold">Bienvenido</h2>
           <p className="mt-2 text-sm text-slate-600">
-            Vincula tu cuenta para comenzar el analisis contextual del correo abierto.
+            Abrí el panel para analizar el correo que estás leyendo en Outlook.
           </p>
           <button
             className="mt-6 w-full rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700"
             type="button"
             onClick={handleLink}
           >
-            Vincular Outlook
+            Abrir panel de análisis
           </button>
         </section>
       ) : (
@@ -326,7 +376,7 @@ function TaskPane(): JSX.Element {
               className="mt-4 w-full rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
               type="button"
               onClick={handleAnalyze}
-              disabled={!mailMetadata || isAnalyzing}
+              disabled={!mailMetadata || isAnalyzing || isEnriching}
             >
               {isAnalyzing ? "Analizando..." : "Analizar Amenaza con IA"}
             </button>
@@ -374,6 +424,16 @@ function TaskPane(): JSX.Element {
               ) : (
                 analysisResult && (
                   <>
+                    {isEnriching && (
+                      <p role="status" className="rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900">
+                        Veredicto disponible. Preparando la explicación ampliada...
+                      </p>
+                    )}
+                    {explanationWarning && (
+                      <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                        {explanationWarning}
+                      </p>
+                    )}
                     {/* Veredicto principal */}
                     <div className={`rounded-2xl border p-5 shadow-sm ${
                       analysisResult.isPhishing
@@ -428,7 +488,10 @@ function TaskPane(): JSX.Element {
                       </div>
                     )}
 
-                    {analysisResult.hybridXai && (
+                    {analysisResult.hybridXai && !isEnriching &&
+                      (analysisResult.hybridXai.technical_status !== "skipped" ||
+                        analysisResult.hybridXai.lime_status !== "skipped" ||
+                        analysisResult.decisionSource === "hybrid_critical_security_rule") && (
                       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                         <h3 className="text-sm font-semibold text-slate-800">
                           {analysisResult.decisionSource === "hybrid_critical_security_rule" ? "Origen del veredicto" : "Evidencia del modelo Hybrid"}
@@ -581,7 +644,7 @@ function TaskPane(): JSX.Element {
               onClick={handleUnlink}
               className="text-xs font-semibold text-slate-500 hover:text-rose-600 transition"
             >
-              Desvincular cuenta de Outlook
+              Cerrar panel de análisis
             </button>
           </div>
         </section>

@@ -35,9 +35,6 @@ export type AnalyzeResponse = {
   hybrid_xai: HybridXai;
 };
 
-// En desarrollo, la ruta relativa pasa por el proxy HTTPS del dev server.
-const API_BASE_URL = process.env.API_BASE_URL || "";
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -83,21 +80,56 @@ function parseHybridXai(value: unknown): HybridXai {
   };
 }
 
-export async function analyzeEmail(subject: string, body: string, sender: string, securityFeatures: SecurityFeatures | null): Promise<AnalyzeResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/analyze/hybrid`, {
+export async function analyzeEmail(subject: string, body: string, sender: string, securityFeatures: SecurityFeatures | null, quick = false, signal?: AbortSignal): Promise<AnalyzeResponse> {
+  const payload = JSON.stringify({
+    metadata: { asunto: subject, remitente_email: sender, remitente_nombre: "" },
+    contenido: body,
+    security_features: securityFeatures,
+  });
+  const route = quick ? "/api/v1/analyze/hybrid?quick=true" : "/api/v1/analyze/hybrid";
+  let endpoint = route;
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (!__LOCAL_DEV__) {
+    if (new TextEncoder().encode(payload).byteLength > 1_100_000) {
+      throw new Error("El correo es demasiado grande para analizarlo.");
+    }
+    const nonceBytes = crypto.getRandomValues(new Uint8Array(16));
+    const nonce = Array.from(nonceBytes, (value) => value.toString(16).padStart(2, "0")).join("");
+    const digestBytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`${nonce}.${payload}`));
+    const digest = Array.from(new Uint8Array(digestBytes), (value) => value.toString(16).padStart(2, "0")).join("");
+    const tokenResponse = await fetch("/api/v1/analyze/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nonce, digest }),
+      signal,
+    });
+    if (tokenResponse.status === 429) throw new Error("Se alcanzó el límite temporal de análisis. Intente más tarde.");
+    if (!tokenResponse.ok) throw new Error("No se pudo autorizar el análisis del correo.");
+    const authorization: unknown = await tokenResponse.json();
+    if (!isRecord(authorization) || typeof authorization.token !== "string" ||
+        typeof authorization.api_base_url !== "string") {
+      throw new Error("La autorización del análisis es inválida.");
+    }
+    let backend: URL;
+    try { backend = new URL(authorization.api_base_url); } catch {
+      throw new Error("La dirección del backend es inválida.");
+    }
+    if (backend.protocol !== "https:" || backend.username || backend.password) {
+      throw new Error("La dirección del backend debe usar HTTPS.");
+    }
+    endpoint = new URL(route, backend).href;
+    headers.Authorization = `Bearer ${authorization.token}`;
+  }
+  const response = await fetch(endpoint, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-API-Key": process.env.API_KEY || "PHISHARG_DEV_KEY_123",
-    },
-    body: JSON.stringify({
-      metadata: { asunto: subject, remitente_email: sender, remitente_nombre: "" },
-      contenido: body,
-      security_features: securityFeatures,
-    }),
+    headers,
+    body: payload,
+    signal,
   });
 
   if (!response.ok) {
+    if (response.status === 413) throw new Error("El correo es demasiado grande para analizarlo.");
+    if (response.status === 429) throw new Error("El servicio está ocupado. Intente nuevamente en unos segundos.");
     if (response.status === 404) throw new Error("El backend configurado no tiene la ruta Hybrid.");
     if (response.status === 503) throw new Error("El modelo Hybrid no está configurado en el backend.");
     if (response.status === 401) throw new Error("La clave de acceso al backend no es válida.");

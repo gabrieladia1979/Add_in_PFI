@@ -12,8 +12,14 @@ const compiled = ts.transpileModule(source, {
 const serviceExports = {};
 vm.runInNewContext(compiled, {
   exports: serviceExports,
-  fetch,
-  process: { env: { API_BASE_URL: baseUrl, API_KEY: process.env.API_KEY } },
+  __LOCAL_DEV__: true,
+  fetch: (url, options) => fetch(new URL(url, baseUrl), {
+    ...options,
+    headers: {
+      ...options.headers,
+      'X-API-Key': process.env.API_KEY || 'PHISHARG_DEV_KEY_123',
+    },
+  }),
 }, { filename: 'analysisService.ts' });
 
 serviceExports.analyzeEmail(

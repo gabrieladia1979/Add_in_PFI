@@ -4,18 +4,6 @@ const HtmlWebpackPlugin = require("html-webpack-plugin");
 const CopyWebpackPlugin = require("copy-webpack-plugin");
 module.exports = async (_env, argv) => {
   const isDev = argv.mode === "development";
-  const apiBaseUrl = (process.env.API_BASE_URL || "").trim().replace(/\/+$/, "");
-  if (!isDev) {
-    let parsedUrl;
-    try {
-      parsedUrl = new URL(apiBaseUrl);
-    } catch {
-      throw new Error("Para publicar el complemento, configurá API_BASE_URL con la URL HTTPS del backend.");
-    }
-    if (parsedUrl.protocol !== "https:" || !parsedUrl.hostname) {
-      throw new Error("API_BASE_URL debe usar HTTPS en la compilación de producción.");
-    }
-  }
 
   return {
     entry: {
@@ -49,12 +37,7 @@ module.exports = async (_env, argv) => {
       ],
     },
     plugins: [
-      new webpack.DefinePlugin({
-        "process.env.API_BASE_URL": JSON.stringify(apiBaseUrl),
-        "process.env.API_KEY": JSON.stringify(
-          process.env.API_KEY || "PHISHARG_DEV_KEY_123"
-        ),
-      }),
+      new webpack.DefinePlugin({ __LOCAL_DEV__: JSON.stringify(isDev) }),
       new HtmlWebpackPlugin({
         filename: "taskpane.html",
         template: path.resolve(__dirname, "src/taskpane/taskpane.html"),
@@ -79,6 +62,7 @@ module.exports = async (_env, argv) => {
           context: ["/api"],
           target: "http://127.0.0.1:8001",
           changeOrigin: true,
+          headers: { "X-API-Key": process.env.API_KEY || "PHISHARG_DEV_KEY_123" },
         },
       ],
     },

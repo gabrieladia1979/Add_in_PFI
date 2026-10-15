@@ -9,6 +9,7 @@
     "start": "webpack serve --mode development"
   },
   "dependencies": {
+    "@vercel/firewall": "^1.2.6",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },
