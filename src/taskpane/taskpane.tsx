@@ -250,6 +250,14 @@ function TaskPane(): JSX.Element {
     setIsLinked(true);
   };
 
+  const handleRefresh = (): void => {
+    analysisRequestId.current += 1;
+    setAnalysisResult(null);
+    setAnalysisError(null);
+    setIsAnalyzing(false);
+    setItemVersion((version) => version + 1);
+  };
+
   const handleAnalyze = async (): Promise<void> => {
     if (!mailMetadata) {
       return;
@@ -327,7 +335,10 @@ function TaskPane(): JSX.Element {
       ) : (
         <section className="space-y-6">
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold">Correo actual</h2>
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-lg font-semibold">Correo actual</h2>
+              <button type="button" onClick={handleRefresh} className="text-xs font-semibold text-blue-700 hover:underline">Actualizar correo</button>
+            </div>
             {loadError ? (
               <p className="mt-3 text-sm text-rose-600">{loadError}</p>
             ) : (
@@ -376,6 +387,9 @@ function TaskPane(): JSX.Element {
             >
               {isAnalyzing ? "Analizando..." : "Analizar Amenaza con IA"}
             </button>
+            {isAnalyzing && (
+              <button type="button" onClick={handleRefresh} className="mt-3 w-full rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700">Cancelar análisis</button>
+            )}
             {isAnalyzing && (
               <p className="mt-3 text-sm text-slate-600" role="status">
                 Ejecutando modelos de riesgo...
