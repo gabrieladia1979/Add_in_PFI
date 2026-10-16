@@ -125,7 +125,7 @@ function TaskPane(): JSX.Element {
     setAnalysisError(null);
 
     try {
-      const response = await analyzeEmail(mailMetadata.subject, mailMetadata.body, mailMetadata.sender, securityFeatures);
+      const response = await analyzeEmail(mailMetadata.subject, mailMetadata.body, mailMetadata.senderEmail, securityFeatures);
       if (requestId === analysisRequestId.current) {
         setAnalysisResult(buildAnalysisResult(response));
       }
@@ -155,6 +155,15 @@ function TaskPane(): JSX.Element {
       setReportStatus(error instanceof Error ? error.message : "No se pudo preparar el reporte.");
     }
   };
+
+  const recommendedActions = analysisResult?.slmData?.recommended_actions?.length
+    ? analysisResult.slmData.recommended_actions
+    : analysisResult?.isPhishing
+      ? [
+          { code: "do_not_click", text: "No abras los enlaces ni adjuntos hasta verificar el mensaje." },
+          { code: "verify_via_official_channel", text: "Consultá al remitente por un canal oficial iniciado por vos." },
+        ]
+      : [{ code: "verify_via_official_channel", text: "Si tenés dudas, comprobá el remitente y los enlaces por un canal oficial." }];
 
   if (!officeReady) {
     return (
@@ -296,7 +305,7 @@ function TaskPane(): JSX.Element {
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 className="text-lg font-semibold">Accion principal</h2>
             <p className="mt-2 text-sm text-slate-600">
-              Ejecuta el analisis simulado con IA para generar explicaciones XAI.
+              Analizá el correo abierto y revisá las señales que justifican el resultado.
             </p>
             <button
               className="mt-4 w-full rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
@@ -441,14 +450,14 @@ function TaskPane(): JSX.Element {
                       </div>
                     )}
 
-                    {/* Acciones recomendadas del SLM */}
-                    {analysisResult.slmData && analysisResult.slmData.recommended_actions.length > 0 && (
+                    {/* Mostrar una recomendación segura aunque falte la explicación estructurada. */}
+                    {recommendedActions.length > 0 && (
                       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                         <h3 className="text-sm font-semibold text-slate-800">
                           🛡️ {analysisResult.isPhishing ? "¿Qué deberías hacer?" : "Recomendación"}
                         </h3>
                         <div className="mt-3 space-y-2">
-                          {analysisResult.slmData.recommended_actions.map((action, idx) => {
+                          {recommendedActions.map((action, idx) => {
                             const actionStyles: Record<string, { bg: string; icon: string }> = {
                               do_not_click: { bg: "bg-rose-50 border-rose-200", icon: "🚫" },
                               do_not_reply: { bg: "bg-orange-50 border-orange-200", icon: "🔇" },
@@ -472,7 +481,10 @@ function TaskPane(): JSX.Element {
                     {/* Fallback: si no hay SLM data, mostrar el resultado plano */}
                     {!analysisResult.slmData && (
                       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                        <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-sm text-emerald-900">
+                        <p className="mb-3 text-sm text-slate-600">No se recibió una explicación detallada del servicio.</p>
+                        <div className={`rounded-xl border p-4 text-sm ${analysisResult.isPhishing
+                          ? "border-rose-100 bg-rose-50 text-rose-900"
+                          : "border-emerald-100 bg-emerald-50 text-emerald-900"}`}>
                           {analysisResult.explanation}
                         </div>
                         <div className="mt-4">

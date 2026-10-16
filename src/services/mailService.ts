@@ -59,6 +59,18 @@ function getBodyText(item: Office.MessageRead): Promise<string> {
   });
 }
 
+function getBodyHtml(item: Office.MessageRead): Promise<string> {
+  if (!item.body) {
+    return Promise.resolve("");
+  }
+
+  return new Promise((resolve) => {
+    item.body.getAsync(Office.CoercionType.Html, (result) => {
+      resolve(result.status === Office.AsyncResultStatus.Succeeded ? result.value || "" : "");
+    });
+  });
+}
+
 export async function getCurrentMessageMetadata(): Promise<MailMetadata | null> {
   const item = getMailboxItem();
   if (!item) {
@@ -68,13 +80,14 @@ export async function getCurrentMessageMetadata(): Promise<MailMetadata | null> 
   const sender = getSenderLabel(item);
   const senderEmail = item.from?.emailAddress || "";
   const subject = item.subject || "Sin asunto";
-  const bodyText = await getBodyText(item);
+  const [bodyText, bodyHtml] = await Promise.all([getBodyText(item), getBodyHtml(item)]);
 
   return {
     sender,
     senderEmail,
     subject,
-    body: bodyText,
+    // Preserve href targets: the visible link text alone may hide a phishing URL.
+    body: bodyHtml || bodyText,
     bodyPreview: normalizeBodyPreview(bodyText),
   };
 }
