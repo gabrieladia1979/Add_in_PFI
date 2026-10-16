@@ -170,6 +170,26 @@ function TaskPane(): JSX.Element {
     setReportStatus(null);
   };
 
+  const handleRefresh = (): void => {
+    analysisRequestId.current += 1;
+    activeAnalysisController.current?.abort();
+    setAnalysisResult(null);
+    setAnalysisError(null);
+    setExplanationWarning(null);
+    setIsAnalyzing(false);
+    setIsEnriching(false);
+    setReportStatus(null);
+    setItemVersion((version) => version + 1);
+  };
+
+  const handleCancel = (): void => {
+    analysisRequestId.current += 1;
+    activeAnalysisController.current?.abort();
+    setIsAnalyzing(false);
+    setIsEnriching(false);
+    setAnalysisError("Análisis cancelado. Podés volver a intentarlo.");
+  };
+
   const handleAnalyze = async (): Promise<void> => {
     if (!mailMetadata) {
       return;
@@ -295,7 +315,12 @@ function TaskPane(): JSX.Element {
       ) : (
         <section className="space-y-6">
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold">Correo actual</h2>
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-lg font-semibold">Correo actual</h2>
+              <button type="button" onClick={handleRefresh} className="text-xs font-semibold text-blue-700 hover:underline">
+                Actualizar correo
+              </button>
+            </div>
             {loadError ? (
               <p className="mt-3 text-sm text-rose-600">{loadError}</p>
             ) : (
@@ -408,6 +433,11 @@ function TaskPane(): JSX.Element {
             >
               {isAnalyzing ? "Analizando..." : "Analizar Amenaza con IA"}
             </button>
+            {(isAnalyzing || isEnriching) && (
+              <button type="button" onClick={handleCancel} className="mt-3 w-full rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700">
+                Cancelar análisis
+              </button>
+            )}
           </div>
 
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
