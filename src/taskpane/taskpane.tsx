@@ -177,6 +177,8 @@ function TaskPane(): JSX.Element {
     null,
   );
   const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [itemVersion, setItemVersion] = useState(0);
+  const analysisRequestId = useRef(0);
   const analyzeButtonRef = useRef<HTMLButtonElement>(null);
   const shouldRestoreAnalyzeFocus = useRef(false);
 
@@ -191,6 +193,20 @@ function TaskPane(): JSX.Element {
       }
     });
   }, []);
+
+  useEffect(() => {
+    if (!officeReady || !Office.context.requirements.isSetSupported("Mailbox", "1.5")) return;
+    const mailbox = Office.context.mailbox;
+    const onItemChanged = (): void => {
+      analysisRequestId.current += 1;
+      setAnalysisResult(null);
+      setAnalysisError(null);
+      setIsAnalyzing(false);
+      setItemVersion((version) => version + 1);
+    };
+    mailbox.addHandlerAsync(Office.EventType.ItemChanged, onItemChanged);
+    return () => mailbox.removeHandlerAsync(Office.EventType.ItemChanged);
+  }, [officeReady]);
 
   useEffect(() => {
     if (!officeReady || !isLinked) {
@@ -221,7 +237,7 @@ function TaskPane(): JSX.Element {
     return () => {
       cancelled = true;
     };
-  }, [officeReady, isLinked]);
+  }, [officeReady, isLinked, itemVersion]);
 
   useEffect(() => {
     if (!analysisResult && shouldRestoreAnalyzeFocus.current) {
@@ -239,6 +255,7 @@ function TaskPane(): JSX.Element {
       return;
     }
 
+    const requestId = ++analysisRequestId.current;
     setIsAnalyzing(true);
     setAnalysisResult(null);
     setAnalysisError(null);
@@ -249,11 +266,11 @@ function TaskPane(): JSX.Element {
         mailMetadata.body,
         mailMetadata.sender,
       );
-      setAnalysisResult(buildAnalysisResult(response));
+      if (requestId === analysisRequestId.current) setAnalysisResult(buildAnalysisResult(response));
     } catch (error) {
-      setAnalysisError("No se pudo analizar el correo.");
+      if (requestId === analysisRequestId.current) setAnalysisError("No se pudo analizar el correo.");
     } finally {
-      setIsAnalyzing(false);
+      if (requestId === analysisRequestId.current) setIsAnalyzing(false);
     }
   };
 
