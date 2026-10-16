@@ -178,6 +178,9 @@ function TaskPane(): JSX.Element {
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [itemVersion, setItemVersion] = useState(0);
   const analysisRequestId = useRef(0);
+  const activeAnalysisController = useRef<AbortController | null>(null);
+
+  useEffect(() => () => activeAnalysisController.current?.abort(), []);
   const analyzeButtonRef = useRef<HTMLButtonElement>(null);
   const shouldRestoreAnalyzeFocus = useRef(false);
 
@@ -198,6 +201,7 @@ function TaskPane(): JSX.Element {
     const mailbox = Office.context.mailbox;
     const onItemChanged = (): void => {
       analysisRequestId.current += 1;
+      activeAnalysisController.current?.abort();
       setAnalysisResult(null);
       setAnalysisError(null);
       setIsAnalyzing(false);
@@ -249,12 +253,24 @@ function TaskPane(): JSX.Element {
     setIsLinked(true);
   };
 
+  const handleRefresh = (): void => {
+    analysisRequestId.current += 1;
+    activeAnalysisController.current?.abort();
+    setAnalysisResult(null);
+    setAnalysisError(null);
+    setIsAnalyzing(false);
+    setItemVersion((version) => version + 1);
+  };
+
   const handleAnalyze = async (): Promise<void> => {
     if (!mailMetadata) {
       return;
     }
 
     const requestId = ++analysisRequestId.current;
+    const controller = new AbortController();
+    activeAnalysisController.current = controller;
+    const timeoutId = window.setTimeout(() => controller.abort(), 30_000);
     setIsAnalyzing(true);
     setAnalysisResult(null);
     setAnalysisError(null);
@@ -264,11 +280,15 @@ function TaskPane(): JSX.Element {
         mailMetadata.subject,
         mailMetadata.body,
         mailMetadata.senderEmail,
+        controller.signal,
       );
       if (requestId === analysisRequestId.current) setAnalysisResult(buildAnalysisResult(response));
     } catch (error) {
-      if (requestId === analysisRequestId.current) setAnalysisError("No se pudo analizar el correo.");
+      if (requestId === analysisRequestId.current) setAnalysisError(error instanceof Error && error.name === "AbortError"
+        ? "El análisis superó los 30 segundos." : "No se pudo analizar el correo.");
     } finally {
+      window.clearTimeout(timeoutId);
+      if (activeAnalysisController.current === controller) activeAnalysisController.current = null;
       if (requestId === analysisRequestId.current) setIsAnalyzing(false);
     }
   };
@@ -326,7 +346,10 @@ function TaskPane(): JSX.Element {
       ) : (
         <section className="space-y-6">
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold">Correo actual</h2>
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-lg font-semibold">Correo actual</h2>
+              <button type="button" onClick={handleRefresh} className="text-xs font-semibold text-blue-700 hover:underline">Actualizar correo</button>
+            </div>
             {loadError ? (
               <p className="mt-3 text-sm text-rose-600">{loadError}</p>
             ) : (
@@ -374,6 +397,9 @@ function TaskPane(): JSX.Element {
             >
               {isAnalyzing ? "Analizando..." : "Analizar Amenaza con IA"}
             </button>
+            {isAnalyzing && (
+              <button type="button" onClick={handleRefresh} className="mt-3 w-full rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700">Cancelar análisis</button>
+            )}
             {isAnalyzing && (
               <p className="mt-3 text-sm text-slate-600" role="status">
                 Ejecutando modelos de riesgo...

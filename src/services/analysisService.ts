@@ -37,6 +37,7 @@ export async function analyzeEmail(
   subject: string,
   body: string,
   sender: string,
+  signal?: AbortSignal,
 ): Promise<AnalyzeResponse> {
   const payload: AnalyzeRequest = { subject, body, sender };
   const response = await fetch(API_URL, {
@@ -45,6 +46,7 @@ export async function analyzeEmail(
       "Content-Type": "application/json",
     },
     body: JSON.stringify(payload),
+    signal,
   });
 
   if (!response.ok) {
