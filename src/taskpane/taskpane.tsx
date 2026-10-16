@@ -7,6 +7,8 @@ import { extractSecurityFeatures } from "../services/securityService";
 import { SecurityFeatures } from "../types/securityTypes";
 import "./taskpane.css";
 
+const ANALYSIS_TIMEOUT_MS = 30_000;
+
 function AuthBadge({ label, result }: { label: string; result: string }): JSX.Element {
   let colorClasses = "bg-slate-100 text-slate-600";
   let icon = "❓";
@@ -42,6 +44,9 @@ function TaskPane(): JSX.Element {
   const [reportStatus, setReportStatus] = useState<string | null>(null);
   const [itemVersion, setItemVersion] = useState(0);
   const analysisRequestId = useRef(0);
+  const activeAnalysisController = useRef<AbortController | null>(null);
+
+  useEffect(() => () => activeAnalysisController.current?.abort(), []);
 
   useEffect(() => {
     if (typeof Office === "undefined") {
@@ -60,6 +65,7 @@ function TaskPane(): JSX.Element {
     const mailbox = Office.context.mailbox;
     const onItemChanged = (): void => {
       analysisRequestId.current += 1;
+      activeAnalysisController.current?.abort();
       setAnalysisResult(null);
       setAnalysisError(null);
       setIsAnalyzing(false);
@@ -119,6 +125,7 @@ function TaskPane(): JSX.Element {
   const handleUnlink = (): void => {
     // Ignore responses from analyses started before this local UI reset.
     analysisRequestId.current += 1;
+    activeAnalysisController.current?.abort();
     setIsLinked(false);
     setMailMetadata(null);
     setSecurityFeatures(null);
@@ -130,26 +137,50 @@ function TaskPane(): JSX.Element {
     setReportStatus(null);
   };
 
+  const handleRefresh = (): void => {
+    analysisRequestId.current += 1;
+    activeAnalysisController.current?.abort();
+    setAnalysisResult(null);
+    setAnalysisError(null);
+    setIsAnalyzing(false);
+    setReportStatus(null);
+    setItemVersion((version) => version + 1);
+  };
+
+  const handleCancel = (): void => {
+    analysisRequestId.current += 1;
+    activeAnalysisController.current?.abort();
+    setIsAnalyzing(false);
+    setAnalysisError("Análisis cancelado. Podés volver a intentarlo.");
+  };
+
   const handleAnalyze = async (): Promise<void> => {
     if (!mailMetadata) {
       return;
     }
 
     const requestId = ++analysisRequestId.current;
+    const controller = new AbortController();
+    activeAnalysisController.current = controller;
+    const timeoutId = window.setTimeout(() => controller.abort(), ANALYSIS_TIMEOUT_MS);
     setIsAnalyzing(true);
     setAnalysisResult(null);
     setAnalysisError(null);
 
     try {
-      const response = await analyzeEmail(mailMetadata.subject, mailMetadata.body, mailMetadata.senderEmail, securityFeatures);
+      const response = await analyzeEmail(mailMetadata.subject, mailMetadata.body, mailMetadata.senderEmail, securityFeatures, controller.signal);
       if (requestId === analysisRequestId.current) {
         setAnalysisResult(buildAnalysisResult(response));
       }
     } catch (error) {
       if (requestId === analysisRequestId.current) {
-        setAnalysisError("No se pudo analizar el correo.");
+        setAnalysisError(error instanceof Error && error.name === "AbortError"
+          ? "El análisis superó los 30 segundos. Podés volver a intentarlo."
+          : "No se pudo analizar el correo.");
       }
     } finally {
+      window.clearTimeout(timeoutId);
+      if (activeAnalysisController.current === controller) activeAnalysisController.current = null;
       if (requestId === analysisRequestId.current) {
         setIsAnalyzing(false);
       }
@@ -218,7 +249,12 @@ function TaskPane(): JSX.Element {
       ) : (
         <section className="space-y-6">
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold">Correo actual</h2>
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-lg font-semibold">Correo actual</h2>
+              <button type="button" onClick={handleRefresh} className="text-xs font-semibold text-blue-700 hover:underline">
+                Actualizar correo
+              </button>
+            </div>
             {loadError ? (
               <p className="mt-3 text-sm text-rose-600">{loadError}</p>
             ) : (
@@ -331,6 +367,11 @@ function TaskPane(): JSX.Element {
             >
               {isAnalyzing ? "Analizando..." : "Analizar Amenaza con IA"}
             </button>
+            {isAnalyzing && (
+              <button type="button" onClick={handleCancel} className="mt-3 w-full rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700">
+                Cancelar análisis
+              </button>
+            )}
           </div>
 
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
