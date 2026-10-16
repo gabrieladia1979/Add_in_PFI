@@ -29,6 +29,26 @@ export type AnalyzeResponse = {
 // En desarrollo, la ruta relativa pasa por el proxy HTTPS del dev server.
 const API_BASE_URL = process.env.API_BASE_URL || "";
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function parseSlmExplanation(value: unknown): SlmExplanation | null {
+  if (typeof value !== "string") return null;
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (!isRecord(parsed) || typeof parsed.summary !== "string" ||
+        !Array.isArray(parsed.reasons) || !Array.isArray(parsed.recommended_actions)) return null;
+    if (!parsed.reasons.every((reason) => isRecord(reason) &&
+        typeof reason.evidence_id === "string" && typeof reason.text === "string")) return null;
+    if (!parsed.recommended_actions.every((action) => isRecord(action) &&
+        typeof action.code === "string" && typeof action.text === "string")) return null;
+    return parsed as SlmExplanation;
+  } catch {
+    return null;
+  }
+}
+
 export async function analyzeEmail(subject: string, body: string, sender: string, securityFeatures: SecurityFeatures | null): Promise<AnalyzeResponse> {
   const response = await fetch(`${API_BASE_URL}/api/v1/analyze`, {
     method: "POST",
@@ -52,25 +72,23 @@ export async function analyzeEmail(subject: string, body: string, sender: string
     throw new Error(message || "Error en el servicio de analisis");
   }
 
-  const data = await response.json();
-
-  // Intentar parsear el JSON del SLM
-  let slmParsed: SlmExplanation | null = null;
-  if (data.slm_explanation) {
-    try {
-      slmParsed = JSON.parse(data.slm_explanation);
-    } catch {
-      slmParsed = null;
-    }
+  const data: unknown = await response.json();
+  if (!isRecord(data) || typeof data.is_phishing !== "boolean" ||
+      typeof data.risk_score !== "number" || !Number.isFinite(data.risk_score) ||
+      data.risk_score < 0 || data.risk_score > 1 || typeof data.reason !== "string") {
+    throw new Error("El servicio devolvió un resultado de análisis incompatible.");
   }
 
   return {
     is_phishing: data.is_phishing,
     confidence_score: data.risk_score,
     raw_label: data.reason,
-    intent: data.intent,
-    slm_explanation: data.slm_explanation,
-    slm_parsed: slmParsed,
-    content_signals: data.content_signals || [],
+    intent: typeof data.intent === "string" ? data.intent : undefined,
+    slm_explanation: typeof data.slm_explanation === "string" ? data.slm_explanation : undefined,
+    slm_parsed: parseSlmExplanation(data.slm_explanation),
+    content_signals: Array.isArray(data.content_signals)
+      ? data.content_signals.filter((signal): signal is { rule: string; description: string } =>
+          isRecord(signal) && typeof signal.rule === "string" && typeof signal.description === "string")
+      : [],
   };
 }
