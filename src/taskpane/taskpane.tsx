@@ -5,6 +5,7 @@ import { analyzeEmail, AnalyzeResponse } from "../services/analysisService";
 import { buildAnalysisResult, AnalysisResult } from "../services/analysisResult";
 import { extractSecurityFeatures } from "../services/securityService";
 import { SecurityFeatures } from "../types/securityTypes";
+import { RiskRing } from "./RiskRing";
 import "./taskpane.css";
 
 const TECHNICAL_LABELS: Record<string, string> = {
@@ -515,15 +516,7 @@ function TaskPane(): JSX.Element {
                             {analysisResult.intent && ` · Intención: ${analysisResult.intent.replace(/_/g, " ")}`}
                           </p>
                         </div>
-                        <div className={`flex h-14 w-14 items-center justify-center rounded-full border-4 ${
-                          analysisResult.isPhishing ? "border-rose-400" : "border-emerald-400"
-                        }`}>
-                          <span className={`text-sm font-bold ${
-                            analysisResult.isPhishing ? "text-rose-600" : "text-emerald-600"
-                          }`}>
-                            {analysisResult.phishScore}%
-                          </span>
-                        </div>
+                        <RiskRing score={analysisResult.phishScore} isPhishing={analysisResult.isPhishing} />
                       </div>
                       {analysisResult.slmData && (
                         <p className="mt-3 rounded-lg bg-white/60 p-3 text-sm text-slate-700">
