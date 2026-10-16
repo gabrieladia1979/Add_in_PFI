@@ -1,5 +1,6 @@
 export type MailMetadata = {
   sender: string;
+  senderEmail: string;
   subject: string;
   body: string;
   bodyPreview: string;
@@ -70,6 +71,7 @@ export async function getCurrentMessageMetadata(): Promise<MailMetadata | null> 
 
   return {
     sender,
+    senderEmail: item.from?.emailAddress || "",
     subject,
     body: bodyText,
     bodyPreview: normalizeBodyPreview(bodyText),
