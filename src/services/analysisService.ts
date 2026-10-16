@@ -49,7 +49,7 @@ function parseSlmExplanation(value: unknown): SlmExplanation | null {
   }
 }
 
-export async function analyzeEmail(subject: string, body: string, sender: string, securityFeatures: SecurityFeatures | null): Promise<AnalyzeResponse> {
+export async function analyzeEmail(subject: string, body: string, sender: string, securityFeatures: SecurityFeatures | null, signal?: AbortSignal): Promise<AnalyzeResponse> {
   const response = await fetch(`${API_BASE_URL}/api/v1/analyze`, {
     method: "POST",
     headers: {
@@ -65,6 +65,7 @@ export async function analyzeEmail(subject: string, body: string, sender: string
       contenido: body,
       security_features: securityFeatures
     }),
+    signal,
   });
 
   if (!response.ok) {
