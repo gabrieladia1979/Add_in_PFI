@@ -5,6 +5,7 @@ import { analyzeEmail, AnalyzeResponse } from "../services/analysisService";
 import "./taskpane.css";
 
 type AnalysisResult = {
+  isPhishing: boolean;
   threatLevel: string;
   explanation: string;
   score: number;
@@ -19,6 +20,7 @@ function buildAnalysisResult(result: AnalyzeResponse): AnalysisResult {
     : "No se detectaron patrones fuertes de phishing, pero revisa enlaces y remitente.";
 
   return {
+    isPhishing: result.is_phishing,
     threatLevel,
     explanation,
     score: result.score,
@@ -209,6 +211,14 @@ function TaskPane(): JSX.Element {
                     </div>
                     <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-sm text-emerald-900">
                       {analysisResult.explanation}
+                    </div>
+                    <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-700">
+                      <h3 className="font-semibold">Recomendación</h3>
+                      <p className="mt-2">
+                        {analysisResult.isPhishing
+                          ? "No abras enlaces ni adjuntos hasta verificar el mensaje por un canal oficial iniciado por vos."
+                          : "Si tenés dudas, comprobá el remitente y los enlaces por un canal oficial."}
+                      </p>
                     </div>
                     <div>
                       <span className="text-xs font-semibold uppercase text-slate-400">
