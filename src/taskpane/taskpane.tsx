@@ -57,6 +57,7 @@ function TaskPane(): JSX.Element {
   const [explanationWarning, setExplanationWarning] = useState<string | null>(null);
   const [reportRecipient, setReportRecipient] = useState("");
   const [reportStatus, setReportStatus] = useState<string | null>(null);
+  const [itemVersion, setItemVersion] = useState(0);
   const analysisRequestId = useRef(0);
   const activeAnalysisController = useRef<AbortController | null>(null);
 
@@ -87,6 +88,24 @@ function TaskPane(): JSX.Element {
       }
     });
   }, []);
+
+  useEffect(() => {
+    if (!officeReady || !Office.context.requirements.isSetSupported("Mailbox", "1.5")) return;
+    const mailbox = Office.context.mailbox;
+    const onItemChanged = (): void => {
+      analysisRequestId.current += 1;
+      activeAnalysisController.current?.abort();
+      setAnalysisResult(null);
+      setAnalysisError(null);
+      setExplanationWarning(null);
+      setIsAnalyzing(false);
+      setIsEnriching(false);
+      setReportStatus(null);
+      setItemVersion((version) => version + 1);
+    };
+    mailbox.addHandlerAsync(Office.EventType.ItemChanged, onItemChanged);
+    return () => mailbox.removeHandlerAsync(Office.EventType.ItemChanged);
+  }, [officeReady]);
 
   useEffect(() => {
     if (!officeReady || !isLinked) {
@@ -128,7 +147,7 @@ function TaskPane(): JSX.Element {
     return () => {
       cancelled = true;
     };
-  }, [officeReady, isLinked]);
+  }, [officeReady, isLinked, itemVersion]);
 
   const handleLink = (): void => {
     setIsLinked(true);
