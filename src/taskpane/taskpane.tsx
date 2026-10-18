@@ -528,14 +528,18 @@ function TaskPane(): JSX.Element {
                       </div>
                     )}
 
-                    {/* Fallback: si no hay SLM data, mostrar el resultado plano */}
+                    {/* El servicio puede devolver una explicación de respaldo como texto plano. */}
                     {!analysisResult.slmData && (
                       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                        <p className="mb-3 text-sm text-slate-600">No se recibió una explicación detallada del servicio.</p>
+                        <p className="mb-3 text-sm text-slate-600">
+                          {analysisResult.plainServiceExplanation
+                            ? "Explicación recibida del servicio"
+                            : "No se recibió una explicación detallada del servicio."}
+                        </p>
                         <div className={`rounded-xl border p-4 text-sm ${analysisResult.isPhishing
                           ? "border-rose-100 bg-rose-50 text-rose-900"
                           : "border-emerald-100 bg-emerald-50 text-emerald-900"}`}>
-                          {analysisResult.explanation}
+                          {analysisResult.plainServiceExplanation || analysisResult.explanation}
                         </div>
                         <div className="mt-4">
                           <div className="flex items-center justify-between text-xs font-semibold uppercase text-slate-400">

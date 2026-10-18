@@ -5,6 +5,7 @@ export type AnalysisResult = {
   contentSignals: { rule: string; description: string }[];
   threatLevel: string;
   explanation: string;
+  plainServiceExplanation?: string;
   phishScore: number;
   intent?: string;
   slmData?: SlmExplanation | null;
@@ -31,6 +32,10 @@ export function buildAnalysisResult(result: AnalyzeResponse): AnalysisResult {
     contentSignals: result.content_signals || [],
     threatLevel,
     explanation,
+    plainServiceExplanation: !result.slm_parsed && result.slm_explanation?.trim() &&
+      !/^[{\[]/.test(result.slm_explanation.trim())
+      ? result.slm_explanation.trim()
+      : undefined,
     phishScore: score,
     intent: result.intent,
     slmData: result.slm_parsed,
