@@ -9,6 +9,7 @@ export type AnalysisResult = {
   phishScore: number;
   intent?: string;
   slmData?: SlmExplanation | null;
+  explanationSource?: "slm" | "fallback";
 };
 
 export function buildAnalysisResult(result: AnalyzeResponse): AnalysisResult {
@@ -39,6 +40,7 @@ export function buildAnalysisResult(result: AnalyzeResponse): AnalysisResult {
     phishScore: score,
     intent: result.intent,
     slmData: result.slm_parsed,
+    explanationSource: result.explanation_source,
   };
 }
 

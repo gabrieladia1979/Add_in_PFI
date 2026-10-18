@@ -23,6 +23,7 @@ export type AnalyzeResponse = {
   intent?: string;
   slm_explanation?: string;
   slm_parsed?: SlmExplanation | null;
+  explanation_source?: "slm" | "fallback";
   content_signals?: { rule: string; description: string }[];
 };
 
@@ -87,6 +88,8 @@ export async function analyzeEmail(subject: string, body: string, sender: string
     intent: typeof data.intent === "string" ? data.intent : undefined,
     slm_explanation: typeof data.slm_explanation === "string" ? data.slm_explanation : undefined,
     slm_parsed: parseSlmExplanation(data.slm_explanation),
+    explanation_source: data.explanation_source === "slm" || data.explanation_source === "fallback"
+      ? data.explanation_source : undefined,
     content_signals: Array.isArray(data.content_signals)
       ? data.content_signals.filter((signal): signal is { rule: string; description: string } =>
           isRecord(signal) && typeof signal.rule === "string" && typeof signal.description === "string")
