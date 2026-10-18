@@ -469,6 +469,13 @@ function TaskPane(): JSX.Element {
                         <h3 className="text-sm font-semibold text-slate-800">
                           📋 {analysisResult.isPhishing ? "¿Por qué es sospechoso?" : "Verificaciones realizadas"}
                         </h3>
+                        {analysisResult.explanationSource && (
+                          <p className="mt-1 text-xs text-slate-500">
+                            {analysisResult.explanationSource === "slm"
+                              ? "Explicación generada por el SLM"
+                              : "Explicación segura basada en señales verificadas"}
+                          </p>
+                        )}
                         <div className="mt-3 space-y-2.5">
                           {analysisResult.slmData.reasons.map((reason, idx) => {
                             const icons: Record<string, string> = {
