@@ -4,13 +4,13 @@
   xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0"
   xsi:type="MailApp">
   <Id>c1b3a1e7-6cbb-4b43-9ed9-9876ef0938f1</Id>
-  <Version>1.0.0.0</Version>
+  <Version>1.0.0.1</Version>
   <ProviderName>PFI</ProviderName>
   <DefaultLocale>es-ES</DefaultLocale>
   <DisplayName DefaultValue="Phish-Score Lab" />
   <Description DefaultValue="Panel de defensa proactiva con XAI y micro-gamificacion." />
-  <IconUrl DefaultValue="https://add-in-pfi.vercel.app/assets/icon-32.png" />
-  <HighResolutionIconUrl DefaultValue="https://add-in-pfi.vercel.app/assets/icon-80.png" />
+  <IconUrl DefaultValue="https://add-in-pfi.vercel.app/assets/phisharg-shield-32.png" />
+  <HighResolutionIconUrl DefaultValue="https://add-in-pfi.vercel.app/assets/phisharg-shield-80.png" />
   <SupportUrl DefaultValue="https://add-in-pfi.vercel.app" />
 
   <Hosts>
@@ -68,9 +68,9 @@
     </Hosts>
     <Resources>
       <bt:Images>
-        <bt:Image id="icon16" DefaultValue="https://add-in-pfi.vercel.app/assets/icon-16.png" />
-        <bt:Image id="icon32" DefaultValue="https://add-in-pfi.vercel.app/assets/icon-32.png" />
-        <bt:Image id="icon80" DefaultValue="https://add-in-pfi.vercel.app/assets/icon-80.png" />
+        <bt:Image id="icon16" DefaultValue="https://add-in-pfi.vercel.app/assets/phisharg-shield-16.png" />
+        <bt:Image id="icon32" DefaultValue="https://add-in-pfi.vercel.app/assets/phisharg-shield-32.png" />
+        <bt:Image id="icon80" DefaultValue="https://add-in-pfi.vercel.app/assets/phisharg-shield-80.png" />
       </bt:Images>
       <bt:Urls>
         <bt:Url id="taskpaneUrl" DefaultValue="https://add-in-pfi.vercel.app/taskpane.html" />
