@@ -4,4 +4,7 @@ dist/
 .vscode/
 *.log
 .env
+.env.*
+!.env.example
+.vercel/
 .atl

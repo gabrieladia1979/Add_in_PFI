@@ -27,9 +27,6 @@ export type AnalyzeResponse = {
   content_signals?: { rule: string; description: string }[];
 };
 
-// En desarrollo, la ruta relativa pasa por el proxy HTTPS del dev server.
-const API_BASE_URL = process.env.API_BASE_URL || "";
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -51,11 +48,10 @@ function parseSlmExplanation(value: unknown): SlmExplanation | null {
 }
 
 export async function analyzeEmail(subject: string, body: string, sender: string, securityFeatures: SecurityFeatures | null, signal?: AbortSignal): Promise<AnalyzeResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/analyze`, {
+  const response = await fetch("/api/v1/analyze", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "X-API-Key": process.env.API_KEY || "PHISHARG_DEV_KEY_123",
     },
     body: JSON.stringify({
       metadata: {

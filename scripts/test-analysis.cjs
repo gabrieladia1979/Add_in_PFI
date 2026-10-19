@@ -33,13 +33,14 @@ test('preserves a phishing verdict and content evidence', () => {
   assert.equal(result.contentSignals, signals);
 });
 
-test('maps backend evidence without requiring SLM JSON and uses configured backend', async () => {
+test('maps backend evidence through the same-origin proxy without browser credentials', async () => {
   let requestedUrl;
   let requestedPayload;
   const { analyzeEmail } = loadService('analysisService', {
     process: { env: { API_BASE_URL: 'https://backend.example.invalid' } },
     fetch: async (url, init) => {
       requestedUrl = url;
+      assert.equal(init.headers['X-API-Key'], undefined);
       requestedPayload = JSON.parse(init.body);
       return { ok: true, json: async () => ({
         is_phishing: true, risk_score: 0.95, reason: 'Pedido de claves',
@@ -49,7 +50,7 @@ test('maps backend evidence without requiring SLM JSON and uses configured backe
     },
   });
   const result = await analyzeEmail('Asunto', 'Cuerpo', 'sender@example.invalid', null);
-  assert.equal(requestedUrl, 'https://backend.example.invalid/api/v1/analyze');
+  assert.equal(requestedUrl, '/api/v1/analyze');
   assert.equal(requestedPayload.metadata.remitente_email, 'sender@example.invalid');
   assert.equal(result.slm_parsed, null);
   assert.equal(result.content_signals[0].rule, 'credential_disclosure_request');
