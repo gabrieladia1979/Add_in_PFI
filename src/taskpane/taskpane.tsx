@@ -206,6 +206,11 @@ function TaskPane(): JSX.Element {
 
   const recommendedActions = analysisResult?.slmData?.recommended_actions?.length
     ? analysisResult.slmData.recommended_actions
+    : analysisResult?.isPhishing && analysisResult.intent === "desviar_pago"
+      ? [
+          { code: "do_not_pay", text: "No transfieras dinero a la cuenta indicada hasta confirmar el cambio." },
+          { code: "verify_via_official_channel", text: "Consultá al proveedor por un canal oficial que ya conozcas." },
+        ]
     : analysisResult?.isPhishing
       ? [
           { code: "do_not_click", text: "No abras los enlaces ni adjuntos hasta verificar el mensaje." },
@@ -517,6 +522,7 @@ function TaskPane(): JSX.Element {
                           {recommendedActions.map((action, idx) => {
                             const actionStyles: Record<string, { bg: string; icon: string }> = {
                               do_not_click: { bg: "bg-rose-50 border-rose-200", icon: "🚫" },
+                              do_not_pay: { bg: "bg-rose-50 border-rose-200", icon: "💳" },
                               do_not_reply: { bg: "bg-orange-50 border-orange-200", icon: "🔇" },
                               do_not_share_sensitive_information: { bg: "bg-amber-50 border-amber-200", icon: "🔒" },
                               report_message: { bg: "bg-blue-50 border-blue-200", icon: "📢" },
@@ -538,16 +544,27 @@ function TaskPane(): JSX.Element {
                     {/* El servicio puede devolver una explicación de respaldo como texto plano. */}
                     {!analysisResult.slmData && (
                       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                        <p className="mb-3 text-sm text-slate-600">
-                          {analysisResult.plainServiceExplanation
-                            ? "Explicación recibida del servicio"
-                            : "No se recibió una explicación detallada del servicio."}
-                        </p>
-                        <div className={`rounded-xl border p-4 text-sm ${analysisResult.isPhishing
-                          ? "border-rose-100 bg-rose-50 text-rose-900"
-                          : "border-emerald-100 bg-emerald-50 text-emerald-900"}`}>
-                          {analysisResult.plainServiceExplanation || analysisResult.explanation}
-                        </div>
+                        <h3 className="mb-3 text-sm font-semibold text-slate-800">
+                          {analysisResult.plainServiceReasons?.length
+                            ? "¿Por qué se marcó este correo?"
+                            : "Explicación del análisis"}
+                        </h3>
+                        {analysisResult.plainServiceReasons?.length ? (
+                          <ol className="space-y-3">
+                            {analysisResult.plainServiceReasons.map((reason, index) => (
+                              <li key={`${index}-${reason}`} className="flex items-start gap-3 text-sm text-slate-700">
+                                <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${analysisResult.isPhishing
+                                  ? "bg-rose-100 text-rose-700"
+                                  : "bg-emerald-100 text-emerald-700"}`}>{index + 1}</span>
+                                <span className="pt-0.5 leading-5">{reason}</span>
+                              </li>
+                            ))}
+                          </ol>
+                        ) : (
+                          <p className="whitespace-pre-wrap rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-700">
+                            {analysisResult.plainServiceExplanation || analysisResult.explanation}
+                          </p>
+                        )}
                         <div className="mt-4">
                           <div className="flex items-center justify-between text-xs font-semibold uppercase text-slate-400">
                             <span>Phish-Score</span>

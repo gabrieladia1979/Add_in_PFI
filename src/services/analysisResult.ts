@@ -6,6 +6,7 @@ export type AnalysisResult = {
   threatLevel: string;
   explanation: string;
   plainServiceExplanation?: string;
+  plainServiceReasons?: string[];
   phishScore: number;
   intent?: string;
   slmData?: SlmExplanation | null;
@@ -28,15 +29,24 @@ export function buildAnalysisResult(result: AnalyzeResponse): AnalysisResult {
     ? "Se detectaron patrones similares a phishing. Revisa remitente, enlaces y urgencia."
     : "No se detectaron patrones fuertes de phishing, pero revisa enlaces y remitente.");
 
+  const plainServiceExplanation = !result.slm_parsed && result.slm_explanation?.trim() &&
+    !/^[{\[]/.test(result.slm_explanation.trim())
+    ? result.slm_explanation.trim()
+    : undefined;
+  const reasonsText = plainServiceExplanation?.match(/(?:^|\s)Motivos:\s*(.*?)\s+Acciones recomendadas:/s)?.[1];
+  const plainServiceReasons = reasonsText
+    ?.split(/(?:^|\s)\d+\.\s+/)
+    .map((reason) => reason.trim())
+    .filter(Boolean)
+    .filter((reason) => !(result.intent === "desviar_pago" && reason === "Se detectó contenido relacionado con pagos o información financiera."));
+
   return {
     isPhishing: result.is_phishing,
     contentSignals: result.content_signals || [],
     threatLevel,
     explanation,
-    plainServiceExplanation: !result.slm_parsed && result.slm_explanation?.trim() &&
-      !/^[{\[]/.test(result.slm_explanation.trim())
-      ? result.slm_explanation.trim()
-      : undefined,
+    plainServiceExplanation,
+    plainServiceReasons: plainServiceReasons?.length ? plainServiceReasons : undefined,
     phishScore: score,
     intent: result.intent,
     slmData: result.slm_parsed,
