@@ -545,21 +545,25 @@ function TaskPane(): JSX.Element {
                     {!analysisResult.slmData && (
                       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                         <h3 className="mb-3 text-sm font-semibold text-slate-800">
-                          {analysisResult.plainServiceReasons?.length
-                            ? "¿Por qué se marcó este correo?"
-                            : "Explicación del análisis"}
+                          Resumen del análisis
                         </h3>
                         {analysisResult.plainServiceReasons?.length ? (
-                          <ol className="space-y-3">
-                            {analysisResult.plainServiceReasons.map((reason, index) => (
-                              <li key={`${index}-${reason}`} className="flex items-start gap-3 text-sm text-slate-700">
-                                <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${analysisResult.isPhishing
-                                  ? "bg-rose-100 text-rose-700"
-                                  : "bg-emerald-100 text-emerald-700"}`}>{index + 1}</span>
-                                <span className="pt-0.5 leading-5">{reason}</span>
-                              </li>
-                            ))}
-                          </ol>
+                          <div className={`space-y-4 rounded-xl border p-4 text-sm leading-6 ${analysisResult.isPhishing
+                            ? "border-rose-100 bg-rose-50 text-rose-900"
+                            : "border-emerald-100 bg-emerald-50 text-emerald-900"}`}>
+                            <div>
+                              <p className="mb-1 font-semibold">Conclusión</p>
+                              <p>{analysisResult.plainServiceSummary}</p>
+                            </div>
+                            <div>
+                              <p className="mb-1 font-semibold">Motivos principales</p>
+                              <div className="space-y-2">
+                                {analysisResult.plainServiceReasons.map((reason, index) => (
+                                  <p key={`${index}-${reason}`}>{reason}</p>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
                         ) : (
                           <p className="whitespace-pre-wrap rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-700">
                             {analysisResult.plainServiceExplanation || analysisResult.explanation}
