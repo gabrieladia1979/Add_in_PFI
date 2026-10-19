@@ -46,6 +46,7 @@ module.exports = async (_env, argv) => {
         patterns: [
           { from: "manifest.xml", to: "manifest.xml" },
           { from: "assets", to: "assets" },
+          { from: "public", to: "." },
         ],
       }),
     ],
