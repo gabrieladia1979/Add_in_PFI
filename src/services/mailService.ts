@@ -39,7 +39,11 @@ function normalizeBodyPreview(text: string): string {
     return "Sin contenido";
   }
 
-  return compact.slice(0, BODY_PREVIEW_LIMIT);
+  if (compact.length <= BODY_PREVIEW_LIMIT) {
+    return compact;
+  }
+
+  return `${compact.slice(0, BODY_PREVIEW_LIMIT).trimEnd()}…`;
 }
 
 function getBodyText(item: Office.MessageRead): Promise<string> {
