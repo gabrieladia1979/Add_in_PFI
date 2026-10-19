@@ -6,6 +6,7 @@ export type AnalysisResult = {
   threatLevel: string;
   explanation: string;
   plainServiceExplanation?: string;
+  plainServiceSummary?: string;
   plainServiceReasons?: string[];
   phishScore: number;
   intent?: string;
@@ -46,6 +47,9 @@ export function buildAnalysisResult(result: AnalyzeResponse): AnalysisResult {
     threatLevel,
     explanation,
     plainServiceExplanation,
+    plainServiceSummary: plainServiceReasons?.length
+      ? plainServiceExplanation?.split(/\s+Motivos:/)[0].trim()
+      : undefined,
     plainServiceReasons: plainServiceReasons?.length ? plainServiceReasons : undefined,
     phishScore: score,
     intent: result.intent,
