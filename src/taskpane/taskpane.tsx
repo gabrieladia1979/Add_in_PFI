@@ -380,33 +380,6 @@ function TaskPane(): JSX.Element {
             )}
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold">Reportar correo sospechoso</h2>
-            <p className="mt-2 text-sm text-slate-600">
-              Prepará un mensaje para el área de seguridad con el correo original adjunto. Outlook te pedirá revisar y enviar el reporte.
-            </p>
-            <label className="mt-4 block text-xs font-semibold text-slate-600" htmlFor="report-recipient">
-              Correo del área de seguridad
-            </label>
-            <input
-              id="report-recipient"
-              type="email"
-              value={reportRecipient}
-              onChange={(event) => setReportRecipient(event.target.value)}
-              placeholder="seguridad@tuempresa.com"
-              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-            />
-            <button
-              className="mt-3 w-full rounded-xl bg-blue-700 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:bg-slate-400"
-              type="button"
-              onClick={handleReport}
-              disabled={!mailMetadata}
-            >
-              Preparar reporte en Outlook
-            </button>
-            {reportStatus && <p role="status" className="mt-3 text-sm text-slate-700">{reportStatus}</p>}
-          </div>
-
           {(isAnalyzing || analysisResult || analysisError) && (
             <div className="space-y-4">
               {isAnalyzing ? (
@@ -588,6 +561,43 @@ function TaskPane(): JSX.Element {
               )}
             </div>
           )}
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 className="text-lg font-semibold">Reportar correo sospechoso</h2>
+            <p className="mt-2 text-sm text-slate-600">
+              Prepará un mensaje para el área de seguridad con el correo original adjunto. Outlook te pedirá revisar y enviar el reporte.
+            </p>
+            {analysisResult?.isPhishing && !isAnalyzing && (
+              <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-slate-700">
+                <p className="font-semibold text-slate-900">Reportá primero y después eliminá el correo</p>
+                <p className="mt-1">
+                  Enviá el reporte al área de seguridad con el mensaje original adjunto.
+                  Después, eliminá el correo de tu bandeja de entrada siguiendo las indicaciones de tu organización.
+                </p>
+                <p className="mt-2 text-xs text-slate-600">Preparar el borrador no envía el reporte: revisalo y pulsá Enviar en Outlook.</p>
+              </div>
+            )}
+            <label className="mt-4 block text-xs font-semibold text-slate-600" htmlFor="report-recipient">
+              Correo del área de seguridad
+            </label>
+            <input
+              id="report-recipient"
+              type="email"
+              value={reportRecipient}
+              onChange={(event) => setReportRecipient(event.target.value)}
+              placeholder="seguridad@tuempresa.com"
+              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            />
+            <button
+              className="mt-3 w-full rounded-xl bg-blue-700 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+              type="button"
+              onClick={handleReport}
+              disabled={!mailMetadata}
+            >
+              Preparar reporte en Outlook
+            </button>
+            {reportStatus && <p role="status" className="mt-3 text-sm text-slate-700">{reportStatus}</p>}
+          </div>
+
           <div className="pt-4 border-t border-slate-200 flex justify-center">
             <button
               type="button"
