@@ -1,35 +1,97 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useId, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { getCurrentMessageMetadata, MailMetadata, getMailboxItem, prepareIncidentReport } from "../services/mailService";
 import { analyzeEmail } from "../services/analysisService";
 import { buildAnalysisResult, AnalysisResult } from "../services/analysisResult";
-import { extractSecurityFeatures } from "../services/securityService";
+import { extractSecurityFeaturesWithStatus, HeaderReadStatus, SecurityExtraction } from "../services/securityService";
 import { SecurityFeatures } from "../types/securityTypes";
 import { RiskRing } from "./RiskRing";
 import "./taskpane.css";
 
 const ANALYSIS_TIMEOUT_MS = 30_000;
 
-function AuthBadge({ label, result }: { label: string; result: string }): JSX.Element {
-  let colorClasses = "bg-slate-100 text-slate-600";
-  let icon = "❓";
+// Service explanations may contain decorative emoji. Keep the message text intact.
+function explanationText(value: string | null | undefined): string {
+  return (value || "").replace(/[\p{Extended_Pictographic}\uFE0F\u200D]/gu, "").replace(/^[ \t]+/gm, "").trim();
+}
 
-  if (result === "pass") {
-    colorClasses = "bg-emerald-100 text-emerald-700";
-    icon = "✅";
-  } else if (result === "fail") {
-    colorClasses = "bg-rose-100 text-rose-700";
-    icon = "❌";
-  } else if (result === "softfail" || result === "neutral") {
-    colorClasses = "bg-amber-100 text-amber-700";
-    icon = "⚠️";
-  }
+function Chevron(): JSX.Element {
+  return <svg className="pa-chevron" aria-hidden="true" viewBox="0 0 20 20" fill="none"><path d="m6 8 4 4 4-4" /></svg>;
+}
 
-  return (
-    <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${colorClasses}`}>
-      {icon} {label}: {result}
-    </span>
-  );
+function StatusMark({ warning }: { warning: boolean }): JSX.Element {
+  return <svg className="pa-status-mark" aria-hidden="true" viewBox="0 0 24 24" fill="none">
+    <path d="M12 3 4.5 6v5.5c0 4.2 3.1 7.6 7.5 9.5 4.4-1.9 7.5-5.3 7.5-9.5V6L12 3Z" />
+    {warning ? <path d="M12 8v5m0 3v.01" /> : <path d="m8.5 12 2.3 2.3 4.7-4.7" />}
+  </svg>;
+}
+
+type AuthDisplayStatus = HeaderReadStatus | "loading" | "unavailable";
+
+function DomainAuthCheck({ features, readStatus }: { features: SecurityFeatures | null; readStatus: AuthDisplayStatus }): JSX.Element {
+  const [expanded, setExpanded] = useState(false);
+  const [hovered, setHovered] = useState(false);
+  const [focused, setFocused] = useState(false);
+  const detailId = useId();
+  const checks = [
+    { name: "SPF", result: features?.spf_result },
+    { name: "DKIM", result: features?.dkim_result },
+    { name: "DMARC", result: features?.dmarc_result },
+  ];
+  const results = checks.map(({ result }) => result);
+  const passed = results.filter((result) => result === "pass").length;
+  const missing = results.filter((result) => !result || result === "unknown").length;
+  const status = readStatus === "loading" ? "Leyendo..."
+    : readStatus !== "ready" ? "No disponible"
+    : missing === 3 ? "No consta" : `${passed}/3`;
+  const isOpen = expanded || hovered || focused;
+
+  return <div
+    className={`pa-auth-check${isOpen ? " pa-auth-check--expanded" : ""}`}
+    onMouseEnter={() => setHovered(true)}
+    onMouseLeave={() => setHovered(false)}
+  >
+    <button
+      type="button"
+      className="pa-auth-check-trigger"
+      aria-controls={detailId}
+      aria-expanded={isOpen}
+      aria-label={`Autenticación del dominio: ${status}${readStatus === "ready" && missing && missing < 3 ? `, ${missing} sin resultado` : ""}. Ver SPF, DKIM y DMARC`}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
+      onClick={() => { setExpanded((current) => !current); setFocused(false); }}
+    >
+      {readStatus === "ready" && passed === 3 && <span className="pa-auth-check-icon" aria-hidden="true">✓</span>}
+      <span className="pa-auth-check-label">Autenticación</span>
+      <strong className="pa-auth-check-count">{status}</strong>
+      <span className="pa-auth-check-meter" aria-hidden="true">
+        {results.map((result, index) => <span key={index} className={readStatus === "ready" && result === "pass" ? "pa-auth-check-segment pa-auth-check-segment--pass" : "pa-auth-check-segment"} />)}
+      </span>
+    </button>
+    <div id={detailId} className="pa-auth-check-detail">
+      <p className="pa-auth-check-caption">{readStatus === "loading" ? "Leyendo encabezados del correo..."
+        : readStatus === "unsupported" ? "Esta versión de Outlook no permite leer los encabezados."
+        : readStatus === "failed" ? "No se pudieron leer los encabezados del correo."
+        : readStatus === "empty" ? "Outlook no devolvió encabezados para este correo."
+        : readStatus === "unavailable" ? "No hay un correo disponible para verificar."
+        : "Verificaciones del dominio del remitente"}</p>
+      <ul>
+        {checks.map(({ name, result }) => {
+          const label = readStatus === "loading" ? "Leyendo..."
+            : readStatus !== "ready" ? "No disponible"
+            : result === "pass" ? "Aprobado"
+            : result === "fail" ? "Falló"
+            : result === "softfail" ? "Fallo parcial"
+            : result === "neutral" ? "Neutro"
+            : result === "bestguesspass" ? "Aprobación estimada"
+            : result === "none" ? "Ninguno"
+            : "No consta";
+          const tone = result === "pass" ? "pa-auth-check-pass" : result === "fail" || result === "softfail" ? "pa-auth-check-fail" : "";
+          return <li key={name}><span>{name}</span><span className={tone}>{label}</span></li>;
+        })}
+      </ul>
+    </div>
+  </div>;
 }
 
 function TaskPane(): JSX.Element {
@@ -37,17 +99,31 @@ function TaskPane(): JSX.Element {
   const [isLinked, setIsLinked] = useState(false);
   const [mailMetadata, setMailMetadata] = useState<MailMetadata | null>(null);
   const [securityFeatures, setSecurityFeatures] = useState<SecurityFeatures | null>(null);
+  const [headerReadStatus, setHeaderReadStatus] = useState<AuthDisplayStatus>("unavailable");
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
+  const [analysisSecurityFeatures, setAnalysisSecurityFeatures] = useState<SecurityFeatures | null>(null);
+  const [analysisHeaderStatus, setAnalysisHeaderStatus] = useState<AuthDisplayStatus>("unavailable");
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [reportRecipient, setReportRecipient] = useState("");
   const [reportStatus, setReportStatus] = useState<string | null>(null);
   const [itemVersion, setItemVersion] = useState(0);
   const analysisRequestId = useRef(0);
+  const securityRead = useRef<{ version: number; promise: Promise<SecurityExtraction> } | null>(null);
+  const activeItemVersion = useRef(0);
   const activeAnalysisController = useRef<AbortController | null>(null);
+  const resultRef = useRef<HTMLDivElement | null>(null);
+  const mailOverviewRef = useRef<HTMLDetailsElement | null>(null);
 
   useEffect(() => () => activeAnalysisController.current?.abort(), []);
+
+  useEffect(() => {
+    if (analysisResult) {
+      resultRef.current?.focus({ preventScroll: true });
+      resultRef.current?.scrollIntoView({ block: "start" });
+    }
+  }, [analysisResult]);
 
   useEffect(() => {
     if (typeof Office === "undefined") {
@@ -65,12 +141,18 @@ function TaskPane(): JSX.Element {
     if (!officeReady || !Office.context.requirements.isSetSupported("Mailbox", "1.5")) return;
     const mailbox = Office.context.mailbox;
     const onItemChanged = (): void => {
+      activeItemVersion.current += 1;
+      securityRead.current = null;
       analysisRequestId.current += 1;
       activeAnalysisController.current?.abort();
       setAnalysisResult(null);
+      setAnalysisSecurityFeatures(null);
       setAnalysisError(null);
       setIsAnalyzing(false);
       setReportStatus(null);
+      setMailMetadata(null);
+      setSecurityFeatures(null);
+      setHeaderReadStatus("loading");
       setItemVersion((version) => version + 1);
     };
     mailbox.addHandlerAsync(Office.EventType.ItemChanged, onItemChanged);
@@ -86,14 +168,26 @@ function TaskPane(): JSX.Element {
     setLoadError(null);
     setMailMetadata(null);
     setSecurityFeatures(null);
+    setHeaderReadStatus("loading");
 
     const item = getMailboxItem();
     if (item) {
-      extractSecurityFeatures(item)
-        .then((features) => {
-          if (!cancelled) setSecurityFeatures(features);
+      const version = activeItemVersion.current;
+      const promise = extractSecurityFeaturesWithStatus(item);
+      securityRead.current = { version, promise };
+      promise
+        .then(({ features, headerStatus }) => {
+          if (!cancelled && version === activeItemVersion.current) {
+            setSecurityFeatures(features);
+            setHeaderReadStatus(headerStatus);
+          }
         })
-        .catch(() => {});
+        .catch(() => {
+          if (!cancelled && version === activeItemVersion.current) setHeaderReadStatus("failed");
+        });
+    } else {
+      securityRead.current = null;
+      setHeaderReadStatus("unavailable");
     }
 
 
@@ -130,7 +224,10 @@ function TaskPane(): JSX.Element {
     setIsLinked(false);
     setMailMetadata(null);
     setSecurityFeatures(null);
+    setHeaderReadStatus("unavailable");
+    securityRead.current = null;
     setAnalysisResult(null);
+    setAnalysisSecurityFeatures(null);
     setLoadError(null);
     setAnalysisError(null);
     setIsAnalyzing(false);
@@ -138,14 +235,15 @@ function TaskPane(): JSX.Element {
     setReportStatus(null);
   };
 
-  const handleRefresh = (): void => {
-    analysisRequestId.current += 1;
-    activeAnalysisController.current?.abort();
+  const handleBackToMail = (): void => {
     setAnalysisResult(null);
+    setAnalysisSecurityFeatures(null);
     setAnalysisError(null);
-    setIsAnalyzing(false);
     setReportStatus(null);
-    setItemVersion((version) => version + 1);
+    window.requestAnimationFrame(() => {
+      mailOverviewRef.current?.querySelector("summary")?.focus({ preventScroll: true });
+      mailOverviewRef.current?.scrollIntoView({ block: "start" });
+    });
   };
 
   const handleCancel = (): void => {
@@ -153,6 +251,7 @@ function TaskPane(): JSX.Element {
     activeAnalysisController.current?.abort();
     setIsAnalyzing(false);
     setAnalysisError("Análisis cancelado. Podés volver a intentarlo.");
+    setAnalysisSecurityFeatures(null);
   };
 
   const handleAnalyze = async (): Promise<void> => {
@@ -164,12 +263,21 @@ function TaskPane(): JSX.Element {
     const controller = new AbortController();
     activeAnalysisController.current = controller;
     const timeoutId = window.setTimeout(() => controller.abort(), ANALYSIS_TIMEOUT_MS);
+    const versionAtAnalysis = activeItemVersion.current;
     setIsAnalyzing(true);
     setAnalysisResult(null);
+    setAnalysisSecurityFeatures(null);
+    setAnalysisHeaderStatus("loading");
     setAnalysisError(null);
 
     try {
-      const response = await analyzeEmail(mailMetadata.subject, mailMetadata.body, mailMetadata.senderEmail, securityFeatures, controller.signal);
+      const extraction = securityRead.current?.version === versionAtAnalysis
+        ? await securityRead.current.promise.catch(() => null) : null;
+      if (requestId !== analysisRequestId.current || versionAtAnalysis !== activeItemVersion.current || controller.signal.aborted) return;
+      const featuresAtAnalysis = extraction?.features ? { ...extraction.features } : null;
+      setAnalysisSecurityFeatures(featuresAtAnalysis);
+      setAnalysisHeaderStatus(extraction?.headerStatus || "failed");
+      const response = await analyzeEmail(mailMetadata.subject, mailMetadata.body, mailMetadata.senderEmail, featuresAtAnalysis, controller.signal);
       if (requestId === analysisRequestId.current) {
         setAnalysisResult(buildAnalysisResult(response));
       }
@@ -178,6 +286,8 @@ function TaskPane(): JSX.Element {
         setAnalysisError(error instanceof Error && error.name === "AbortError"
           ? "El análisis superó los 30 segundos. Podés volver a intentarlo."
           : "No se pudo analizar el correo.");
+        setAnalysisSecurityFeatures(null);
+        setAnalysisHeaderStatus("unavailable");
       }
     } finally {
       window.clearTimeout(timeoutId);
@@ -198,7 +308,7 @@ function TaskPane(): JSX.Element {
     }
     try {
       prepareIncidentReport(recipient, mailMetadata, analysisResult?.phishScore);
-      setReportStatus("Se abrió un borrador en Outlook. Revisalo y pulsá Enviar para completar el reporte.");
+      setReportStatus("Borrador abierto en Outlook.");
     } catch (error) {
       setReportStatus(error instanceof Error ? error.message : "No se pudo preparar el reporte.");
     }
@@ -218,6 +328,122 @@ function TaskPane(): JSX.Element {
         ]
       : [{ code: "verify_via_official_channel", text: "Si tenés dudas, comprobá el remitente y los enlaces por un canal oficial." }];
 
+  // Present each explanation once when the service repeats a detected signal.
+  const explanationKey = (text: string): string => explanationText(text).replace(/\s+/g, " ").toLocaleLowerCase("es");
+  const seenExplanationKeys = new Set((analysisResult?.contentSignals || []).map((signal) => explanationKey(signal.description)));
+  const visibleReasons = (analysisResult?.slmData?.reasons || []).filter((reason) => {
+    const key = explanationKey(reason.text);
+    if (!key || seenExplanationKeys.has(key)) return false;
+    seenExplanationKeys.add(key);
+    return true;
+  });
+
+  const overviewFeatures = analysisResult ? analysisSecurityFeatures : securityFeatures;
+  const overviewHeaderStatus = analysisResult ? analysisHeaderStatus : headerReadStatus;
+  const mailOverview = (
+    <details
+      key={`mail-${itemVersion}-${analysisResult ? "result" : isAnalyzing ? "analyzing" : "preview"}`}
+      ref={mailOverviewRef}
+      open={!analysisResult && !isAnalyzing}
+      className="pa-disclosure"
+    >
+      <summary className="pa-disclosure-summary">
+        <div className="min-w-0 flex-1">
+          <h2 className={analysisResult ? "text-sm font-semibold text-slate-900" : "text-xs font-semibold text-slate-500"}>
+            {analysisResult ? "Correo analizado" : "Correo actual"}
+          </h2>
+          {!analysisResult && (
+            <>
+              <p
+                role={loadError ? "alert" : undefined}
+                className={`mt-1 truncate text-sm font-semibold ${loadError ? "text-rose-600" : "text-slate-900"}`}
+                title={mailMetadata?.subject}
+              >
+                {loadError || mailMetadata?.subject || "Cargando correo..."}
+              </p>
+              {mailMetadata && <p className="mt-1 truncate text-xs text-slate-500">{mailMetadata.sender}</p>}
+            </>
+          )}
+        </div>
+        <Chevron />
+      </summary>
+      <div className="pa-disclosure-body space-y-4">
+        {mailMetadata && (
+          <dl className="space-y-3 text-sm text-slate-700">
+            <div>
+              <dt className="text-xs font-semibold text-slate-500">Remitente</dt>
+              <dd className="mt-1 break-words">{mailMetadata.senderEmail || mailMetadata.sender}</dd>
+            </div>
+            <div>
+              <dt className="text-xs font-semibold text-slate-500">Asunto</dt>
+              <dd className="mt-1 break-words">{mailMetadata.subject}</dd>
+            </div>
+            <div>
+              <dt className="text-xs font-semibold text-slate-500">Cuerpo (extracto)</dt>
+              <dd className="mt-1 break-words">{mailMetadata.bodyPreview}</dd>
+            </div>
+          </dl>
+        )}
+        {/* Security Indicators Section */}
+        {overviewFeatures?.has_headers && (
+          <div className="border-t border-slate-100 pt-4">
+            <h2 className="text-sm font-semibold">Indicadores de seguridad</h2>
+
+            {/* Spoofing alerts */}
+            {!overviewFeatures.from_return_path_match && (
+              <div className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">
+                Return-Path no coincide con el remitente
+              </div>
+            )}
+            {!overviewFeatures.from_reply_to_match && (
+              <div className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">
+                Reply-To difiere del remitente
+              </div>
+            )}
+            {!overviewFeatures.sender_vs_from_match && (
+              <div className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                Email enviado en nombre de otra persona
+              </div>
+            )}
+
+            {/* Origin info */}
+            <div className="mt-4 grid grid-cols-2 gap-2 text-xs text-slate-600">
+              {overviewFeatures.originating_country && (
+                <div>
+                  <span className="font-semibold text-slate-400">País:</span>{" "}
+                  {overviewFeatures.originating_country}
+                </div>
+              )}
+              {overviewFeatures.originating_ip && (
+                <div>
+                  <span className="font-semibold text-slate-400">IP:</span>{" "}
+                  {overviewFeatures.originating_ip}
+                </div>
+              )}
+              <div>
+                <span className="font-semibold text-slate-400">Hops:</span>{" "}
+                {overviewFeatures.received_hop_count}
+              </div>
+            </div>
+
+            {/* Attachments */}
+            {overviewFeatures.attachment_count > 0 && (
+              <div className={`mt-3 rounded-lg px-3 py-2 text-xs ${
+                overviewFeatures.has_executable_attachment
+                  ? "bg-rose-50 text-rose-700"
+                  : "bg-slate-50 text-slate-600"
+              }`}>
+                {overviewFeatures.attachment_count} adjunto{overviewFeatures.attachment_count !== 1 ? "s" : ""}
+                {overviewFeatures.has_executable_attachment && " · Contiene ejecutable"}
+              </div>
+            )}
+          </div>
+        )}
+        <DomainAuthCheck features={overviewFeatures} readStatus={overviewHeaderStatus} />
+      </div>
+    </details>
+  );
+
   if (!officeReady) {
     return (
       <div className="min-h-screen bg-slate-50 px-6 py-8 text-slate-900">
@@ -227,8 +453,8 @@ function TaskPane(): JSX.Element {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 px-6 py-8 text-slate-900">
-      <header className="mb-8">
+    <div className={isLinked ? `pa-panel${analysisResult?.isPhishing ? " pa-panel--warning" : ""}` : "min-h-screen bg-slate-50 px-6 py-8 text-slate-900"}>
+      {!isLinked && <header className="mb-8">
         <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">
           Phish-Score Lab
         </p>
@@ -236,7 +462,7 @@ function TaskPane(): JSX.Element {
         <p className="mt-2 text-sm text-slate-600">
           Educa en tiempo real y explica con XAI por que un correo es sospechoso.
         </p>
-      </header>
+      </header>}
 
       {!isLinked ? (
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -253,307 +479,119 @@ function TaskPane(): JSX.Element {
           </button>
         </section>
       ) : (
-        <section className="space-y-6">
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="flex items-center justify-between gap-2">
-              <h2 className="text-lg font-semibold">Correo actual</h2>
-              <button type="button" onClick={handleRefresh} className="text-xs font-semibold text-blue-700 hover:underline">
-                Actualizar correo
+        <section className="pa-workspace">
+          {!analysisResult && mailOverview}
+
+          {!analysisResult && (
+            <div className="pa-analysis-start">
+              <h2 className="pa-section-title">Analizar correo</h2>
+              <button
+                className="pa-button pa-button--primary"
+                type="button"
+                onClick={handleAnalyze}
+                disabled={!mailMetadata || isAnalyzing}
+              >
+                {isAnalyzing ? "Analizando..." : "Analizar amenaza con IA"}
               </button>
-            </div>
-            {loadError ? (
-              <p className="mt-3 text-sm text-rose-600">{loadError}</p>
-            ) : (
-              <div className="mt-4 space-y-3 text-sm text-slate-700">
-                <div>
-                  <span className="text-xs font-semibold uppercase text-slate-400">
-                    Remitente
-                  </span>
-                  <p className="mt-1 font-medium text-slate-900">
-                    {mailMetadata?.sender || "-"}
-                  </p>
-                </div>
-                <div>
-                  <span className="text-xs font-semibold uppercase text-slate-400">
-                    Asunto
-                  </span>
-                  <p className="mt-1 font-medium text-slate-900">
-                    {mailMetadata?.subject || "-"}
-                  </p>
-                </div>
-                <div>
-                  <span className="text-xs font-semibold uppercase text-slate-400">
-                    Cuerpo (extracto)
-                  </span>
-                  <p className="mt-1 text-slate-700">
-                    {mailMetadata?.bodyPreview || "-"}
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Security Indicators Section */}
-          {securityFeatures && securityFeatures.has_headers && (
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h2 className="text-lg font-semibold">Indicadores de Seguridad</h2>
-
-              {/* Auth badges */}
-              <div className="mt-4 flex flex-wrap gap-2">
-                <AuthBadge label="SPF" result={securityFeatures.spf_result} />
-                <AuthBadge label="DKIM" result={securityFeatures.dkim_result} />
-                <AuthBadge label="DMARC" result={securityFeatures.dmarc_result} />
-              </div>
-
-              {/* Spoofing alerts */}
-              {!securityFeatures.from_return_path_match && (
-                <div className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">
-                  ⚠️ Return-Path no coincide con el remitente
-                </div>
-              )}
-              {!securityFeatures.from_reply_to_match && (
-                <div className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">
-                  ⚠️ Reply-To difiere del remitente
-                </div>
-              )}
-              {!securityFeatures.sender_vs_from_match && (
-                <div className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
-                  ℹ️ Email enviado en nombre de otra persona
-                </div>
-              )}
-
-              {/* Origin info */}
-              <div className="mt-4 grid grid-cols-2 gap-2 text-xs text-slate-600">
-                {securityFeatures.originating_country && (
-                  <div>
-                    <span className="font-semibold text-slate-400">País:</span>{" "}
-                    {securityFeatures.originating_country}
-                  </div>
-                )}
-                {securityFeatures.originating_ip && (
-                  <div>
-                    <span className="font-semibold text-slate-400">IP:</span>{" "}
-                    {securityFeatures.originating_ip}
-                  </div>
-                )}
-                <div>
-                  <span className="font-semibold text-slate-400">Auth:</span>{" "}
-                  {securityFeatures.auth_as}
-                </div>
-                <div>
-                  <span className="font-semibold text-slate-400">Hops:</span>{" "}
-                  {securityFeatures.received_hop_count}
-                </div>
-              </div>
-
-              {/* Attachments */}
-              {securityFeatures.attachment_count > 0 && (
-                <div className={`mt-3 rounded-lg px-3 py-2 text-xs ${
-                  securityFeatures.has_executable_attachment
-                    ? "bg-rose-50 text-rose-700"
-                    : "bg-slate-50 text-slate-600"
-                }`}>
-                  📎 {securityFeatures.attachment_count} adjunto{securityFeatures.attachment_count !== 1 ? "s" : ""}
-                  {securityFeatures.has_executable_attachment && " · ⚠️ Contiene ejecutable"}
-                </div>
+              {isAnalyzing && (
+                <button type="button" onClick={handleCancel} className="pa-button pa-button--secondary">
+                  Cancelar análisis
+                </button>
               )}
             </div>
           )}
 
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold">Accion principal</h2>
-            <p className="mt-2 text-sm text-slate-600">
-              Analizá el correo abierto y revisá las señales que justifican el resultado.
-            </p>
-            <button
-              className="mt-4 w-full rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
-              type="button"
-              onClick={handleAnalyze}
-              disabled={!mailMetadata || isAnalyzing}
-            >
-              {isAnalyzing ? "Analizando..." : "Analizar Amenaza con IA"}
-            </button>
-            {isAnalyzing && (
-              <button type="button" onClick={handleCancel} className="mt-3 w-full rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700">
-                Cancelar análisis
-              </button>
-            )}
-          </div>
-
           {(isAnalyzing || analysisResult || analysisError) && (
-            <div className="space-y-4">
+            <div ref={resultRef} tabIndex={-1} role="region" aria-label="Resultado del análisis" className={`pa-result ${analysisResult ? "pa-result--ready" : ""}`}>
               {isAnalyzing ? (
-                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                  <p className="text-sm text-slate-600">
-                    Ejecutando modelos de riesgo...
-                  </p>
+                <div className="pa-feedback" role="status">
+                  <span className="pa-spinner" aria-hidden="true" />
+                  <p>Analizando el correo. Esperá un momento.</p>
                 </div>
               ) : analysisError ? (
-                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                  <p className="text-sm text-rose-600">{analysisError}</p>
+                <div className="pa-feedback pa-feedback--error" role="alert">
+                  <p>{analysisError}</p>
                 </div>
               ) : (
                 analysisResult && (
                   <>
-                    {/* Veredicto principal */}
-                    <div className={`rounded-2xl border p-5 shadow-sm ${
-                      analysisResult.isPhishing
-                        ? "border-rose-200 bg-rose-50"
-                        : "border-emerald-200 bg-emerald-50"
-                    }`}>
-                      <div className="flex items-center gap-3">
-                        <div className={`flex h-12 w-12 items-center justify-center rounded-full text-2xl ${
-                          analysisResult.isPhishing ? "bg-rose-100" : "bg-emerald-100"
-                        }`}>
-                          {analysisResult.isPhishing ? "🚨" : "✅"}
-                        </div>
-                        <div className="flex-1">
-                          <p className={`text-lg font-bold ${
-                            analysisResult.isPhishing ? "text-rose-700" : "text-emerald-700"
-                          }`}>
-                            {analysisResult.isPhishing ? "PHISHING DETECTADO" : "CORREO LEGÍTIMO"}
-                          </p>
-                          <p className="text-xs text-slate-500">
-                            Riesgo: {analysisResult.phishScore}%
-                            {analysisResult.intent && ` · Intención: ${analysisResult.intent.replace(/_/g, " ")}`}
-                          </p>
+                    <button type="button" onClick={handleBackToMail} className="pa-text-button mb-3 inline-flex items-center gap-2">
+                      <svg aria-hidden="true" width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="m8 4-6 6 6 6M2 10h15" />
+                      </svg>
+                      Volver al correo
+                    </button>
+                    <div className={`pa-verdict ${analysisResult.isPhishing ? "pa-verdict--warning" : "pa-verdict--safe"}`}>
+                      <div className="pa-verdict-header">
+                        <StatusMark warning={analysisResult.isPhishing} />
+                        <div className="pa-verdict-heading">
+                          <h1>{analysisResult.isPhishing ? "Phishing detectado" : "Correo legítimo"}</h1>
+                          {analysisResult.intent && <p>Intención: {analysisResult.intent.replace(/_/g, " ")}</p>}
                         </div>
                         <RiskRing score={analysisResult.phishScore} isPhishing={analysisResult.isPhishing} />
                       </div>
-                      {analysisResult.slmData && (
-                        <p className="mt-3 rounded-lg bg-white/60 p-3 text-sm text-slate-700">
-                          {analysisResult.slmData.summary}
-                        </p>
-                      )}
+                      {analysisResult.slmData && <p className="pa-verdict-summary">{explanationText(analysisResult.slmData.summary)}</p>}
                     </div>
 
                     {analysisResult.contentSignals.length > 0 && (
-                      <div className="rounded-2xl border border-rose-200 bg-rose-50 p-5 shadow-sm">
-                        <h3 className="text-sm font-semibold text-rose-800">Señales detectadas en el mensaje</h3>
+                      <div className="pa-section pa-signals">
+                        <h3 className="pa-section-title">Señales detectadas en el mensaje</h3>
                         <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-slate-700">
                           {analysisResult.contentSignals.map((signal) => (
-                            <li key={signal.rule}>{signal.description}</li>
+                            <li key={signal.rule}>{explanationText(signal.description)}</li>
                           ))}
                         </ul>
-                        <p className="mt-3 text-sm font-medium text-rose-800">
+                        <p className="pa-guidance">
                           No compartas claves ni realices el pago solicitado. Verificá la solicitud por un canal conocido, iniciado por vos.
                         </p>
                       </div>
                     )}
 
-                    {/* Razones del SLM */}
-                    {analysisResult.slmData && analysisResult.slmData.reasons.length > 0 && (
-                      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                        <h3 className="text-sm font-semibold text-slate-800">
-                          📋 {analysisResult.isPhishing ? "¿Por qué es sospechoso?" : "Verificaciones realizadas"}
-                        </h3>
-                        {analysisResult.explanationSource && (
-                          <p className="mt-1 text-xs text-slate-500">
-                            {analysisResult.explanationSource === "slm"
-                              ? "Explicación generada por el SLM"
-                              : "Explicación segura basada en señales verificadas"}
-                          </p>
-                        )}
-                        <div className="mt-3 space-y-2.5">
-                          {analysisResult.slmData.reasons.map((reason, idx) => {
-                            const icons: Record<string, string> = {
-                              "slot.urgencia": "⚡",
-                              "slot.autoridad": "🏛️",
-                              "slot.financiero": "💰",
-                              "slot.amenaza": "⚠️",
-                              "slot.llamado_accion": "👆",
-                              "slot.premio_falso": "🎁",
-                              "slot.solicitud_datos": "🔑",
-                              "security.url_check": "🔗",
-                              "security.spf_fail": "⚙️",
-                              "security.ml_classifier": "🤖",
-                              "security.all_checks_pass": "✅",
-                              "security.intent_detection": "🎯",
-                            };
-                            const icon = icons[reason.evidence_id] || (analysisResult.isPhishing ? "🔴" : "✅");
-                            return (
-                              <div key={idx} className="flex items-start gap-2.5">
-                                <span className="mt-0.5 text-base">{icon}</span>
-                                <div>
-                                  <p className="text-sm text-slate-700">{reason.text}</p>
-                                  <p className="text-xs text-slate-400">{reason.evidence_id.replace(/\./g, " · ")}</p>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
+                    {visibleReasons.length > 0 && (
+                      <section className="pa-section">
+                        <h2 className="pa-section-title">{analysisResult.isPhishing ? "¿Por qué es sospechoso?" : "Verificaciones realizadas"}</h2>
+                        <ul className="pa-explanations">
+                          {visibleReasons.map((reason, idx) => <li key={idx}>{explanationText(reason.text)}</li>)}
+                        </ul>
+                      </section>
                     )}
 
-                    {/* Mostrar una recomendación segura aunque falte la explicación estructurada. */}
                     {recommendedActions.length > 0 && (
-                      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                        <h3 className="text-sm font-semibold text-slate-800">
-                          🛡️ {analysisResult.isPhishing ? "¿Qué deberías hacer?" : "Recomendación"}
-                        </h3>
-                        <div className="mt-3 space-y-2">
-                          {recommendedActions.map((action, idx) => {
-                            const actionStyles: Record<string, { bg: string; icon: string }> = {
-                              do_not_click: { bg: "bg-rose-50 border-rose-200", icon: "🚫" },
-                              do_not_pay: { bg: "bg-rose-50 border-rose-200", icon: "💳" },
-                              do_not_reply: { bg: "bg-orange-50 border-orange-200", icon: "🔇" },
-                              do_not_share_sensitive_information: { bg: "bg-amber-50 border-amber-200", icon: "🔒" },
-                              report_message: { bg: "bg-blue-50 border-blue-200", icon: "📢" },
-                              verify_via_official_channel: { bg: "bg-indigo-50 border-indigo-200", icon: "📞" },
-                              no_action_needed: { bg: "bg-emerald-50 border-emerald-200", icon: "👍" },
-                            };
-                            const style = actionStyles[action.code] || { bg: "bg-slate-50 border-slate-200", icon: "ℹ️" };
-                            return (
-                              <div key={idx} className={`flex items-center gap-3 rounded-xl border p-3 ${style.bg}`}>
-                                <span className="text-xl">{style.icon}</span>
-                                <p className="text-sm text-slate-700">{action.text}</p>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
+                      <section className="pa-section pa-recommendations">
+                        <h2 className="pa-section-title">{analysisResult.isPhishing ? "¿Qué deberías hacer?" : "Recomendación"}</h2>
+                        <ul className="pa-actions">
+                          {recommendedActions.map((action, idx) => <li key={idx}>{explanationText(action.text)}</li>)}
+                        </ul>
+                      </section>
                     )}
 
                     {/* El servicio puede devolver una explicación de respaldo como texto plano. */}
                     {!analysisResult.slmData && (
-                      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                        <h3 className="mb-3 text-sm font-semibold text-slate-800">
+                      <div className="pa-section">
+                        <h3 className="pa-section-title">
                           Resumen del análisis
                         </h3>
                         {analysisResult.plainServiceReasons?.length ? (
-                          <div className={`space-y-4 rounded-xl border p-4 text-sm leading-6 ${analysisResult.isPhishing
-                            ? "border-rose-100 bg-rose-50 text-rose-900"
-                            : "border-emerald-100 bg-emerald-50 text-emerald-900"}`}>
+                          <div className="mt-3 space-y-4 text-sm leading-6">
                             <div>
                               <p className="mb-1 font-semibold">Conclusión</p>
-                              <p>{analysisResult.plainServiceSummary}</p>
+                              <p>{explanationText(analysisResult.plainServiceSummary)}</p>
                             </div>
                             <div>
                               <p className="mb-1 font-semibold">Motivos principales</p>
                               <div className="space-y-2">
                                 {analysisResult.plainServiceReasons.map((reason, index) => (
-                                  <p key={`${index}-${reason}`}>{reason}</p>
+                                  <p key={`${index}-${reason}`}>{explanationText(reason)}</p>
                                 ))}
                               </div>
                             </div>
                           </div>
                         ) : (
-                          <p className="whitespace-pre-wrap rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-700">
-                            {analysisResult.plainServiceExplanation || analysisResult.explanation}
+                          <p className="mt-3 whitespace-pre-wrap text-sm leading-6">
+                            {explanationText(analysisResult.plainServiceExplanation || analysisResult.explanation)}
                           </p>
                         )}
-                        <div className="mt-4">
-                          <div className="flex items-center justify-between text-xs font-semibold uppercase text-slate-400">
-                            <span>Phish-Score</span>
-                            <span>{analysisResult.phishScore}/100</span>
-                          </div>
-                          <div className="mt-2 h-2 w-full rounded-full bg-slate-200">
-                            <div
-                              className="h-2 rounded-full bg-rose-500"
-                              style={{ width: `${analysisResult.phishScore}%` }}
-                            />
-                          </div>
-                        </div>
+
                       </div>
                     )}
                   </>
@@ -561,52 +599,46 @@ function TaskPane(): JSX.Element {
               )}
             </div>
           )}
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold">Reportar correo sospechoso</h2>
-            <p className="mt-2 text-sm text-slate-600">
-              Prepará un mensaje para el área de seguridad con el correo original adjunto. Outlook te pedirá revisar y enviar el reporte.
-            </p>
-            {analysisResult?.isPhishing && !isAnalyzing && (
-              <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-slate-700">
-                <p className="font-semibold text-slate-900">Reportá primero y después eliminá el correo</p>
-                <p className="mt-1">
-                  Enviá el reporte al área de seguridad con el mensaje original adjunto.
-                  Después, eliminá el correo de tu bandeja de entrada siguiendo las indicaciones de tu organización.
-                </p>
-                <p className="mt-2 text-xs text-slate-600">Preparar el borrador no envía el reporte: revisalo y pulsá Enviar en Outlook.</p>
-              </div>
-            )}
-            <label className="mt-4 block text-xs font-semibold text-slate-600" htmlFor="report-recipient">
-              Correo del área de seguridad
-            </label>
-            <input
-              id="report-recipient"
-              type="email"
-              value={reportRecipient}
-              onChange={(event) => setReportRecipient(event.target.value)}
-              placeholder="seguridad@tuempresa.com"
-              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-            />
-            <button
-              className="mt-3 w-full rounded-xl bg-blue-700 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:bg-slate-400"
-              type="button"
-              onClick={handleReport}
-              disabled={!mailMetadata}
-            >
-              Preparar reporte en Outlook
-            </button>
-            {reportStatus && <p role="status" className="mt-3 text-sm text-slate-700">{reportStatus}</p>}
-          </div>
+          {analysisResult && mailOverview}
 
-          <div className="pt-4 border-t border-slate-200 flex justify-center">
+          <details key={`report-${itemVersion}-${analysisResult ? "result" : "preview"}`} className="pa-disclosure">
+            <summary className="pa-disclosure-summary">
+              <h2>Reportar correo sospechoso</h2>
+              <Chevron />
+            </summary>
+            <div className="pa-disclosure-body">
+              <label className="mt-4 block text-xs font-semibold text-slate-600" htmlFor="report-recipient">
+                Destinatario
+              </label>
+              <input
+                id="report-recipient"
+                type="email"
+                value={reportRecipient}
+                onChange={(event) => setReportRecipient(event.target.value)}
+                placeholder="seguridad@tuempresa.com"
+                className="pa-input"
+              />
+              <button
+                className="pa-button pa-button--secondary"
+                type="button"
+                onClick={handleReport}
+                disabled={!mailMetadata}
+              >
+                Preparar reporte en Outlook
+              </button>
+              {reportStatus && <p role="status" className="mt-3 text-sm text-slate-700">{reportStatus}</p>}
+            </div>
+          </details>
+
+          {!analysisResult && <div className="pa-footer">
             <button
               type="button"
               onClick={handleUnlink}
-              className="text-xs font-semibold text-slate-500 hover:text-rose-600 transition"
+              className="pa-text-button pa-exit"
             >
               Desvincular cuenta de Outlook
             </button>
-          </div>
+          </div>}
         </section>
       )}
     </div>
