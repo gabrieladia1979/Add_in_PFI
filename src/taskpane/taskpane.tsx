@@ -455,8 +455,8 @@ function TaskPane(): JSX.Element {
   return (
     <div className={isLinked ? `pa-panel${analysisResult?.isPhishing ? " pa-panel--warning" : ""}` : "min-h-screen bg-slate-50 px-6 py-8 text-slate-900"}>
       {!isLinked && <header className="mb-8">
-        <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">
-          Phish-Score Lab
+        <p className="text-xs font-semibold tracking-wide text-emerald-600">
+          PhishARG
         </p>
         <h1 className="mt-2 text-2xl font-semibold">Panel de Defensa Proactiva</h1>
         <p className="mt-2 text-sm text-slate-600">
