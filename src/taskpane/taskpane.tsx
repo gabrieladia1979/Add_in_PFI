@@ -89,7 +89,7 @@ function DomainAuthCheck({ features }: { features: SecurityFeatures | null }): J
       <div id={detailId} className="pa-auth-check-detail">
         <p className="pa-auth-check-caption">
           {hasHeaders
-            ? "Verificaciones criptográficas y de políticas de remitente en cabeceras MIME:"
+            ? "Comprobaciones de autenticación en las cabeceras del correo:"
             : "No se pudieron obtener las cabeceras de transporte del correo en este entorno."}
         </p>
         <ul className="pa-auth-check-list">
@@ -401,62 +401,66 @@ function TaskPane(): JSX.Element {
             </div>
           </dl>
         )}
-        {/* Security Indicators Section */}
-        {overviewFeatures?.has_headers && (
-          <div className="border-t border-slate-100 pt-4">
-            <h2 className="text-sm font-semibold">Indicadores de seguridad</h2>
+        {/* Security Indicators & Technical Authentication (only shown after analysis in Correo analizado) */}
+        {Boolean(analysisResult) && (
+          <>
+            {overviewFeatures?.has_headers && (
+              <div className="border-t border-slate-100 pt-4">
+                <h2 className="text-sm font-semibold">Indicadores de seguridad</h2>
 
-            {/* Spoofing alerts */}
-            {!overviewFeatures.from_return_path_match && (
-              <div className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">
-                Return-Path no coincide con el remitente
-              </div>
-            )}
-            {!overviewFeatures.from_reply_to_match && (
-              <div className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">
-                Reply-To difiere del remitente
-              </div>
-            )}
-            {!overviewFeatures.sender_vs_from_match && (
-              <div className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
-                Email enviado en nombre de otra persona
-              </div>
-            )}
+                {/* Spoofing alerts */}
+                {!overviewFeatures.from_return_path_match && (
+                  <div className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">
+                    Return-Path no coincide con el remitente
+                  </div>
+                )}
+                {!overviewFeatures.from_reply_to_match && (
+                  <div className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">
+                    Reply-To difiere del remitente
+                  </div>
+                )}
+                {!overviewFeatures.sender_vs_from_match && (
+                  <div className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                    Email enviado en nombre de otra persona
+                  </div>
+                )}
 
-            {/* Origin info */}
-            <div className="mt-4 grid grid-cols-2 gap-2 text-xs text-slate-600">
-              {overviewFeatures.originating_country && (
-                <div>
-                  <span className="font-semibold text-slate-400">País:</span>{" "}
-                  {overviewFeatures.originating_country}
+                {/* Origin info */}
+                <div className="mt-4 grid grid-cols-2 gap-2 text-xs text-slate-600">
+                  {overviewFeatures.originating_country && (
+                    <div>
+                      <span className="font-semibold text-slate-400">País:</span>{" "}
+                      {overviewFeatures.originating_country}
+                    </div>
+                  )}
+                  {overviewFeatures.originating_ip && (
+                    <div>
+                      <span className="font-semibold text-slate-400">IP:</span>{" "}
+                      {overviewFeatures.originating_ip}
+                    </div>
+                  )}
+                  <div>
+                    <span className="font-semibold text-slate-400">Hops:</span>{" "}
+                    {overviewFeatures.received_hop_count}
+                  </div>
                 </div>
-              )}
-              {overviewFeatures.originating_ip && (
-                <div>
-                  <span className="font-semibold text-slate-400">IP:</span>{" "}
-                  {overviewFeatures.originating_ip}
-                </div>
-              )}
-              <div>
-                <span className="font-semibold text-slate-400">Hops:</span>{" "}
-                {overviewFeatures.received_hop_count}
-              </div>
-            </div>
 
-            {/* Attachments */}
-            {overviewFeatures.attachment_count > 0 && (
-              <div className={`mt-3 rounded-lg px-3 py-2 text-xs ${
-                overviewFeatures.has_executable_attachment
-                  ? "bg-rose-50 text-rose-700"
-                  : "bg-slate-50 text-slate-600"
-              }`}>
-                {overviewFeatures.attachment_count} adjunto{overviewFeatures.attachment_count !== 1 ? "s" : ""}
-                {overviewFeatures.has_executable_attachment && " · Contiene ejecutable"}
+                {/* Attachments */}
+                {overviewFeatures.attachment_count > 0 && (
+                  <div className={`mt-3 rounded-lg px-3 py-2 text-xs ${
+                    overviewFeatures.has_executable_attachment
+                      ? "bg-rose-50 text-rose-700"
+                      : "bg-slate-50 text-slate-600"
+                  }`}>
+                    {overviewFeatures.attachment_count} adjunto{overviewFeatures.attachment_count !== 1 ? "s" : ""}
+                    {overviewFeatures.has_executable_attachment && " · Contiene ejecutable"}
+                  </div>
+                )}
               </div>
             )}
-          </div>
+            <DomainAuthCheck features={overviewFeatures} />
+          </>
         )}
-        <DomainAuthCheck features={overviewFeatures} />
       </div>
     </details>
   );
