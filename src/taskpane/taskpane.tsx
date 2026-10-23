@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useId, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { getCurrentMessageMetadata, MailMetadata, getMailboxItem, prepareIncidentReport } from "../services/mailService";
 import { analyzeEmail } from "../services/analysisService";
@@ -24,6 +24,113 @@ function StatusMark({ warning }: { warning: boolean }): JSX.Element {
     <path d="M12 3 4.5 6v5.5c0 4.2 3.1 7.6 7.5 9.5 4.4-1.9 7.5-5.3 7.5-9.5V6L12 3Z" />
     {warning ? <path d="M12 8v5m0 3v.01" /> : <path d="m8.5 12 2.3 2.3 4.7-4.7" />}
   </svg>;
+}
+
+function DomainAuthCheck({ features }: { features: SecurityFeatures | null }): JSX.Element | null {
+  const [expanded, setExpanded] = useState(false);
+  const detailId = useId();
+
+  if (!features) {
+    return null;
+  }
+
+  const checks: { name: string; result: string }[] = [
+    { name: "SPF", result: features.spf_result },
+    { name: "DKIM", result: features.dkim_result },
+    { name: "DMARC", result: features.dmarc_result },
+  ];
+
+  const hasHeaders = features.has_headers;
+  const passed = checks.filter(({ result }) => result === "pass" || result === "bestguesspass").length;
+  const unknown = checks.filter(({ result }) => !result || result === "unknown" || result === "none").length;
+
+  const statusText = !hasHeaders
+    ? "No disponible"
+    : unknown === 3
+    ? "Sin registros"
+    : `${passed}/3 verificados`;
+
+  return (
+    <div className={`pa-auth-check${expanded ? " pa-auth-check--expanded" : ""}`}>
+      <button
+        type="button"
+        className="pa-auth-check-trigger"
+        aria-controls={detailId}
+        aria-expanded={expanded}
+        onClick={() => setExpanded((curr) => !curr)}
+      >
+        <div className="pa-auth-check-header">
+          <svg className="pa-auth-check-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none">
+            <path d="M12 3 4.5 6v5.5c0 4.2 3.1 7.6 7.5 9.5 4.4-1.9 7.5-5.3 7.5-9.5V6L12 3Z" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="m9 12 2 2 4-4" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <span className="pa-auth-check-title">Autenticación técnica</span>
+        </div>
+        <div className="pa-auth-check-summary">
+          <span className="pa-auth-check-count">{statusText}</span>
+          <div className="pa-auth-check-meter" aria-hidden="true">
+            {checks.map(({ result }, idx) => {
+              const segClass = !hasHeaders || !result || result === "unknown" || result === "none"
+                ? ""
+                : result === "pass" || result === "bestguesspass"
+                ? "pa-auth-check-segment--pass"
+                : result === "softfail" || result === "neutral"
+                ? "pa-auth-check-segment--amber"
+                : "pa-auth-check-segment--fail";
+              return <span key={idx} className={`pa-auth-check-segment ${segClass}`} />;
+            })}
+          </div>
+          <svg className={`pa-chevron transition-transform ${expanded ? "rotate-180" : ""}`} aria-hidden="true" viewBox="0 0 20 20" fill="none">
+            <path d="m6 8 4 4 4-4" />
+          </svg>
+        </div>
+      </button>
+
+      <div id={detailId} className="pa-auth-check-detail">
+        <p className="pa-auth-check-caption">
+          {hasHeaders
+            ? "Verificaciones criptográficas y de políticas de remitente en cabeceras MIME:"
+            : "No se pudieron obtener las cabeceras de transporte del correo en este entorno."}
+        </p>
+        <ul className="pa-auth-check-list">
+          {checks.map(({ name, result }) => {
+            let label = "No consta";
+            let badgeClass = "pa-auth-badge--neutral";
+
+            if (result === "pass" || result === "bestguesspass") {
+              label = "Aprobado";
+              badgeClass = "pa-auth-badge--pass";
+            } else if (result === "softfail") {
+              label = "Fallo parcial";
+              badgeClass = "pa-auth-badge--amber";
+            } else if (result === "neutral") {
+              label = "Neutro";
+              badgeClass = "pa-auth-badge--amber";
+            } else if (result === "fail") {
+              label = "Falló";
+              badgeClass = "pa-auth-badge--fail";
+            } else if (result === "none") {
+              label = "Sin política";
+              badgeClass = "pa-auth-badge--neutral";
+            }
+
+            return (
+              <li key={name} className="pa-auth-check-item">
+                <span className="pa-auth-check-name">{name}</span>
+                <span className={`pa-auth-badge ${badgeClass}`}>{label}</span>
+              </li>
+            );
+          })}
+        </ul>
+        {hasHeaders && features.from_return_path_match === false && (
+          <div className="mt-2.5 flex items-center justify-between text-xs p-2 rounded bg-amber-50 text-amber-900 border border-amber-200">
+            <span>Discrepancia en Return-Path</span>
+            <span className="pa-auth-badge pa-auth-badge--amber">Revisar</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 function TaskPane(): JSX.Element {
@@ -349,6 +456,7 @@ function TaskPane(): JSX.Element {
             )}
           </div>
         )}
+        <DomainAuthCheck features={overviewFeatures} />
       </div>
     </details>
   );
