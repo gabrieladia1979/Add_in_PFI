@@ -15,21 +15,35 @@ const DANGEROUS_EXTENSIONS = new Set([
  */
 function getInternetHeaders(item: Office.MessageRead): Promise<string> {
   return new Promise((resolve) => {
+    let settled = false;
+    const complete = (val: string): void => {
+      if (!settled) {
+        settled = true;
+        window.clearTimeout(timerId);
+        resolve(val);
+      }
+    };
+    const timerId = window.setTimeout(() => complete(""), 4000);
+
     if (
       !Office.context.requirements.isSetSupported("Mailbox", "1.8") ||
       !item.getAllInternetHeadersAsync
     ) {
-      resolve("");
+      complete("");
       return;
     }
 
-    item.getAllInternetHeadersAsync((result) => {
-      if (result.status === Office.AsyncResultStatus.Succeeded) {
-        resolve(result.value || "");
-        return;
-      }
-      resolve("");
-    });
+    try {
+      item.getAllInternetHeadersAsync((result) => {
+        if (result.status === Office.AsyncResultStatus.Succeeded) {
+          complete(result.value || "");
+          return;
+        }
+        complete("");
+      });
+    } catch {
+      complete("");
+    }
   });
 }
 
