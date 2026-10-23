@@ -68,22 +68,6 @@ body { margin: 0; }
 .pa-disclosure[open] > summary > .pa-chevron { transform: rotate(180deg); }
 .pa-disclosure-body { padding: 14px; border-top: 1px solid var(--pa-line); }
 .pa-disclosure-body > label:first-child { margin-top: 0; }
-.pa-auth-check { border-top: 1px solid var(--pa-line); padding-top: 12px; color: #475569; }
-.pa-auth-check-trigger { display: flex; align-items: center; gap: 7px; width: 100%; min-height: 32px; border-radius: 5px; text-align: left; font-size: 12px; }
-.pa-auth-check-trigger:hover { color: #253b53; }
-.pa-auth-check-icon { color: #64758a; font-size: 17px; line-height: 1; }
-.pa-auth-check-label { font-weight: 600; }
-.pa-auth-check-count { margin-left: auto; font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.pa-auth-check-meter { display: flex; width: 60px; gap: 2px; }
-.pa-auth-check-segment { height: 5px; flex: 1; border-radius: 99px; background: #cbd5e1; }
-.pa-auth-check-segment--pass { background: #64748b; }
-.pa-auth-check-detail { display: none; margin-top: 8px; padding: 10px 11px; border: 1px solid var(--pa-line); border-radius: 6px; background: #f8fafb; }
-.pa-auth-check--expanded .pa-auth-check-detail { display: block; }
-.pa-auth-check-detail ul { margin: 7px 0; padding: 0; list-style: none; }
-.pa-auth-check-detail li { display: flex; justify-content: space-between; gap: 12px; padding: 3px 0; font-size: 12px; }
-.pa-auth-check-pass { color: #276f5c; font-weight: 600; }
-.pa-auth-check-fail { color: #913141; font-weight: 600; }
-.pa-auth-check-caption { color: var(--pa-muted); font-size: 11px; line-height: 1.4; }
 .pa-text-button { color: var(--pa-accent); font-size: 12px; font-weight: 600; text-underline-offset: 3px; }
 .pa-text-button:hover { text-decoration: underline; }
 .pa-analysis-start { padding: 18px 2px; }

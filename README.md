@@ -41,6 +41,7 @@ npm run build
 
 ## Notas
 - El panel se carga en lectura de mensajes (Message Read).
-- El manifest principal esta en manifest.xml.
- - Sideload manual: en Outlook, agrega manifest.xml desde Complementos.
- - Si tu entorno no confia en el certificado local, acepta el certificado del dev server.
+- `manifest.xml` apunta a Vercel; `manifest-local.xml` apunta a `https://localhost:3000`.
+- Para probar el servidor local, cargá `manifest-local.xml` desde Complementos de Outlook. Para usar la versión publicada, cargá `manifest.xml` después de desplegar los cambios en Vercel.
+- El nombre que muestra Outlook proviene del manifiesto instalado. Si cambió el nombre, quitá la instalación anterior y volvé a cargar el manifiesto correspondiente; reiniciar o recompilar el frontend no actualiza ese dato.
+- Si tu entorno no confía en el certificado local, aceptá el certificado del servidor de desarrollo.
