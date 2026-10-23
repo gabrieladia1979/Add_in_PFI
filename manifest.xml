@@ -7,7 +7,7 @@
   <Version>1.0.0.1</Version>
   <ProviderName>PFI</ProviderName>
   <DefaultLocale>es-ES</DefaultLocale>
-  <DisplayName DefaultValue="Phish-Score Lab" />
+  <DisplayName DefaultValue="PhishARG" />
   <Description DefaultValue="Panel de defensa proactiva con XAI y micro-gamificacion." />
   <IconUrl DefaultValue="https://add-in-pfi.vercel.app/assets/phisharg-shield-32.png" />
   <HighResolutionIconUrl DefaultValue="https://add-in-pfi.vercel.app/assets/phisharg-shield-80.png" />
@@ -76,7 +76,7 @@
         <bt:Url id="taskpaneUrl" DefaultValue="https://add-in-pfi.vercel.app/taskpane.html" />
       </bt:Urls>
       <bt:ShortStrings>
-        <bt:String id="groupLabel" DefaultValue="Phish-Score" />
+        <bt:String id="groupLabel" DefaultValue="PhishARG" />
         <bt:String id="buttonLabel" DefaultValue="Analizar correo" />
         <bt:String id="buttonTitle" DefaultValue="Analizar amenaza" />
       </bt:ShortStrings>
