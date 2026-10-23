@@ -1,5 +1,12 @@
 import { SecurityFeatures, AuthResult } from "../types/securityTypes";
 
+export type HeaderReadStatus = "ready" | "unsupported" | "failed" | "empty";
+export interface SecurityExtraction {
+  features: SecurityFeatures;
+  headerStatus: HeaderReadStatus;
+}
+const HEADER_TIMEOUT_MS = 4_000;
+
 /** Extensiones de archivo consideradas ejecutables peligrosas */
 const DANGEROUS_EXTENSIONS = new Set([
   ".exe", ".bat", ".cmd", ".com", ".vbs", ".vbe",
@@ -13,23 +20,35 @@ const DANGEROUS_EXTENSIONS = new Set([
  * Obtiene todos los headers MIME del email actual.
  * Requiere Mailbox requirement set 1.8.
  */
-function getInternetHeaders(item: Office.MessageRead): Promise<string> {
+function getInternetHeaders(item: Office.MessageRead): Promise<{ value: string; status: HeaderReadStatus }> {
   return new Promise((resolve) => {
+    let settled = false;
+    const complete = (value: string, status: HeaderReadStatus): void => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeoutId);
+      resolve({ value, status });
+    };
+    const timeoutId = window.setTimeout(() => complete("", "failed"), HEADER_TIMEOUT_MS);
     if (
       !Office.context.requirements.isSetSupported("Mailbox", "1.8") ||
       !item.getAllInternetHeadersAsync
     ) {
-      resolve("");
+      complete("", "unsupported");
       return;
     }
-
-    item.getAllInternetHeadersAsync((result) => {
-      if (result.status === Office.AsyncResultStatus.Succeeded) {
-        resolve(result.value || "");
-        return;
-      }
-      resolve("");
-    });
+    try {
+      item.getAllInternetHeadersAsync((result) => {
+        if (result.status !== Office.AsyncResultStatus.Succeeded) {
+          complete("", "failed");
+          return;
+        }
+        const value = result.value || "";
+        complete(value, value.trim() ? "ready" : "empty");
+      });
+    } catch {
+      complete("", "failed");
+    }
   });
 }
 
@@ -319,9 +338,9 @@ function createEmptyFeatures(): SecurityFeatures {
  * @param item - El item de Office.js MessageRead
  * @returns SecurityFeatures con todos los datos extraídos
  */
-export async function extractSecurityFeatures(
+export async function extractSecurityFeaturesWithStatus(
   item: Office.MessageRead
-): Promise<SecurityFeatures> {
+): Promise<SecurityExtraction> {
   const features = createEmptyFeatures();
 
   // --- Propiedades directas de Office.js ---
@@ -346,11 +365,11 @@ export async function extractSecurityFeatures(
   features.cc_count = (item.cc || []).length;
 
   // --- Headers MIME ---
-  const headers = await getInternetHeaders(item);
+  const { value: headers, status: headerStatus } = await getInternetHeaders(item);
 
   if (!headers) {
     features.has_headers = false;
-    return features;
+    return { features, headerStatus };
   }
 
   features.has_headers = true;
@@ -387,5 +406,9 @@ export async function extractSecurityFeatures(
   features.x_mailer = origin.xMailer;
   features.received_hop_count = origin.receivedHopCount;
 
-  return features;
+  return { features, headerStatus };
+}
+
+export async function extractSecurityFeatures(item: Office.MessageRead): Promise<SecurityFeatures> {
+  return (await extractSecurityFeaturesWithStatus(item)).features;
 }
