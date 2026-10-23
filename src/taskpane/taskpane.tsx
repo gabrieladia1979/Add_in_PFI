@@ -1,9 +1,9 @@
-import React, { useEffect, useId, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { getCurrentMessageMetadata, MailMetadata, getMailboxItem, prepareIncidentReport } from "../services/mailService";
 import { analyzeEmail } from "../services/analysisService";
 import { buildAnalysisResult, AnalysisResult } from "../services/analysisResult";
-import { extractSecurityFeaturesWithStatus, HeaderReadStatus, SecurityExtraction } from "../services/securityService";
+import { extractSecurityFeatures } from "../services/securityService";
 import { SecurityFeatures } from "../types/securityTypes";
 import { RiskRing } from "./RiskRing";
 import "./taskpane.css";
@@ -26,91 +26,20 @@ function StatusMark({ warning }: { warning: boolean }): JSX.Element {
   </svg>;
 }
 
-type AuthDisplayStatus = HeaderReadStatus | "loading" | "unavailable";
-
-function DomainAuthCheck({ features, readStatus }: { features: SecurityFeatures | null; readStatus: AuthDisplayStatus }): JSX.Element {
-  const [expanded, setExpanded] = useState(false);
-  const [hovered, setHovered] = useState(false);
-  const [focused, setFocused] = useState(false);
-  const detailId = useId();
-  const checks = [
-    { name: "SPF", result: features?.spf_result },
-    { name: "DKIM", result: features?.dkim_result },
-    { name: "DMARC", result: features?.dmarc_result },
-  ];
-  const results = checks.map(({ result }) => result);
-  const passed = results.filter((result) => result === "pass").length;
-  const missing = results.filter((result) => !result || result === "unknown").length;
-  const status = readStatus === "loading" ? "Leyendo..."
-    : readStatus !== "ready" ? "No disponible"
-    : missing === 3 ? "No consta" : `${passed}/3`;
-  const isOpen = expanded || hovered || focused;
-
-  return <div
-    className={`pa-auth-check${isOpen ? " pa-auth-check--expanded" : ""}`}
-    onMouseEnter={() => setHovered(true)}
-    onMouseLeave={() => setHovered(false)}
-  >
-    <button
-      type="button"
-      className="pa-auth-check-trigger"
-      aria-controls={detailId}
-      aria-expanded={isOpen}
-      aria-label={`Autenticación del dominio: ${status}${readStatus === "ready" && missing && missing < 3 ? `, ${missing} sin resultado` : ""}. Ver SPF, DKIM y DMARC`}
-      onFocus={() => setFocused(true)}
-      onBlur={() => setFocused(false)}
-      onClick={() => { setExpanded((current) => !current); setFocused(false); }}
-    >
-      {readStatus === "ready" && passed === 3 && <span className="pa-auth-check-icon" aria-hidden="true">✓</span>}
-      <span className="pa-auth-check-label">Autenticación</span>
-      <strong className="pa-auth-check-count">{status}</strong>
-      <span className="pa-auth-check-meter" aria-hidden="true">
-        {results.map((result, index) => <span key={index} className={readStatus === "ready" && result === "pass" ? "pa-auth-check-segment pa-auth-check-segment--pass" : "pa-auth-check-segment"} />)}
-      </span>
-    </button>
-    <div id={detailId} className="pa-auth-check-detail">
-      <p className="pa-auth-check-caption">{readStatus === "loading" ? "Leyendo encabezados del correo..."
-        : readStatus === "unsupported" ? "Esta versión de Outlook no permite leer los encabezados."
-        : readStatus === "failed" ? "No se pudieron leer los encabezados del correo."
-        : readStatus === "empty" ? "Outlook no devolvió encabezados para este correo."
-        : readStatus === "unavailable" ? "No hay un correo disponible para verificar."
-        : "Verificaciones del dominio del remitente"}</p>
-      <ul>
-        {checks.map(({ name, result }) => {
-          const label = readStatus === "loading" ? "Leyendo..."
-            : readStatus !== "ready" ? "No disponible"
-            : result === "pass" ? "Aprobado"
-            : result === "fail" ? "Falló"
-            : result === "softfail" ? "Fallo parcial"
-            : result === "neutral" ? "Neutro"
-            : result === "bestguesspass" ? "Aprobación estimada"
-            : result === "none" ? "Ninguno"
-            : "No consta";
-          const tone = result === "pass" ? "pa-auth-check-pass" : result === "fail" || result === "softfail" ? "pa-auth-check-fail" : "";
-          return <li key={name}><span>{name}</span><span className={tone}>{label}</span></li>;
-        })}
-      </ul>
-    </div>
-  </div>;
-}
-
 function TaskPane(): JSX.Element {
   const [officeReady, setOfficeReady] = useState(false);
   const [isLinked, setIsLinked] = useState(false);
   const [mailMetadata, setMailMetadata] = useState<MailMetadata | null>(null);
   const [securityFeatures, setSecurityFeatures] = useState<SecurityFeatures | null>(null);
-  const [headerReadStatus, setHeaderReadStatus] = useState<AuthDisplayStatus>("unavailable");
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [analysisSecurityFeatures, setAnalysisSecurityFeatures] = useState<SecurityFeatures | null>(null);
-  const [analysisHeaderStatus, setAnalysisHeaderStatus] = useState<AuthDisplayStatus>("unavailable");
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [reportRecipient, setReportRecipient] = useState("");
   const [reportStatus, setReportStatus] = useState<string | null>(null);
   const [itemVersion, setItemVersion] = useState(0);
   const analysisRequestId = useRef(0);
-  const securityRead = useRef<{ version: number; promise: Promise<SecurityExtraction> } | null>(null);
   const activeItemVersion = useRef(0);
   const activeAnalysisController = useRef<AbortController | null>(null);
   const resultRef = useRef<HTMLDivElement | null>(null);
@@ -142,7 +71,6 @@ function TaskPane(): JSX.Element {
     const mailbox = Office.context.mailbox;
     const onItemChanged = (): void => {
       activeItemVersion.current += 1;
-      securityRead.current = null;
       analysisRequestId.current += 1;
       activeAnalysisController.current?.abort();
       setAnalysisResult(null);
@@ -152,7 +80,6 @@ function TaskPane(): JSX.Element {
       setReportStatus(null);
       setMailMetadata(null);
       setSecurityFeatures(null);
-      setHeaderReadStatus("loading");
       setItemVersion((version) => version + 1);
     };
     mailbox.addHandlerAsync(Office.EventType.ItemChanged, onItemChanged);
@@ -168,26 +95,17 @@ function TaskPane(): JSX.Element {
     setLoadError(null);
     setMailMetadata(null);
     setSecurityFeatures(null);
-    setHeaderReadStatus("loading");
 
     const item = getMailboxItem();
     if (item) {
       const version = activeItemVersion.current;
-      const promise = extractSecurityFeaturesWithStatus(item);
-      securityRead.current = { version, promise };
-      promise
-        .then(({ features, headerStatus }) => {
+      extractSecurityFeatures(item)
+        .then((features) => {
           if (!cancelled && version === activeItemVersion.current) {
             setSecurityFeatures(features);
-            setHeaderReadStatus(headerStatus);
           }
         })
-        .catch(() => {
-          if (!cancelled && version === activeItemVersion.current) setHeaderReadStatus("failed");
-        });
-    } else {
-      securityRead.current = null;
-      setHeaderReadStatus("unavailable");
+        .catch(() => {});
     }
 
 
@@ -224,8 +142,6 @@ function TaskPane(): JSX.Element {
     setIsLinked(false);
     setMailMetadata(null);
     setSecurityFeatures(null);
-    setHeaderReadStatus("unavailable");
-    securityRead.current = null;
     setAnalysisResult(null);
     setAnalysisSecurityFeatures(null);
     setLoadError(null);
@@ -267,16 +183,12 @@ function TaskPane(): JSX.Element {
     setIsAnalyzing(true);
     setAnalysisResult(null);
     setAnalysisSecurityFeatures(null);
-    setAnalysisHeaderStatus("loading");
     setAnalysisError(null);
 
     try {
-      const extraction = securityRead.current?.version === versionAtAnalysis
-        ? await securityRead.current.promise.catch(() => null) : null;
       if (requestId !== analysisRequestId.current || versionAtAnalysis !== activeItemVersion.current || controller.signal.aborted) return;
-      const featuresAtAnalysis = extraction?.features ? { ...extraction.features } : null;
+      const featuresAtAnalysis = securityFeatures ? { ...securityFeatures } : null;
       setAnalysisSecurityFeatures(featuresAtAnalysis);
-      setAnalysisHeaderStatus(extraction?.headerStatus || "failed");
       const response = await analyzeEmail(mailMetadata.subject, mailMetadata.body, mailMetadata.senderEmail, featuresAtAnalysis, controller.signal);
       if (requestId === analysisRequestId.current) {
         setAnalysisResult(buildAnalysisResult(response));
@@ -287,7 +199,6 @@ function TaskPane(): JSX.Element {
           ? "El análisis superó los 30 segundos. Podés volver a intentarlo."
           : "No se pudo analizar el correo.");
         setAnalysisSecurityFeatures(null);
-        setAnalysisHeaderStatus("unavailable");
       }
     } finally {
       window.clearTimeout(timeoutId);
@@ -339,7 +250,6 @@ function TaskPane(): JSX.Element {
   });
 
   const overviewFeatures = analysisResult ? analysisSecurityFeatures : securityFeatures;
-  const overviewHeaderStatus = analysisResult ? analysisHeaderStatus : headerReadStatus;
   const mailOverview = (
     <details
       key={`mail-${itemVersion}-${analysisResult ? "result" : isAnalyzing ? "analyzing" : "preview"}`}
@@ -439,7 +349,6 @@ function TaskPane(): JSX.Element {
             )}
           </div>
         )}
-        <DomainAuthCheck features={overviewFeatures} readStatus={overviewHeaderStatus} />
       </div>
     </details>
   );
