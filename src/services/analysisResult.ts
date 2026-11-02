@@ -47,9 +47,20 @@ export function buildAnalysisResult(result: AnalyzeResponse): AnalysisResult {
     ? "Se detectaron patrones similares a phishing. Revisa remitente, enlaces y urgencia."
     : "No se detectaron patrones fuertes de phishing, pero revisa enlaces y remitente.");
 
-  const plainServiceExplanation = !result.slm_parsed && result.slm_explanation?.trim() &&
+  // Classifier keywords are not verified excerpts or contextual phishing signals.
+  // Keep them out of the user-facing explanation in both response formats.
+  const slmData = result.slm_parsed ? {
+    ...result.slm_parsed,
+    reasons: result.slm_parsed.reasons.filter((reason) =>
+      reason.evidence_id !== "evidence.keywords"
+      && !/^\s*Palabras clave detectadas\s*:/i.test(reason.text)
+    ),
+  } : result.slm_parsed;
+  const plainServiceExplanation = !slmData && result.slm_explanation?.trim() &&
     !/^[{\[]/.test(result.slm_explanation.trim())
-    ? result.slm_explanation.trim()
+    ? result.slm_explanation
+      .replace(/(?:\d+\.\s*)?Palabras clave detectadas\s*:[^\r\n]*?(?=\r?\n|\s+\d+\.\s|\s+Acciones recomendadas:|$)/gi, "")
+      .trim()
     : undefined;
   const reasonsText = plainServiceExplanation?.match(/(?:^|\s)Motivos:\s*(.*?)\s+Acciones recomendadas:/s)?.[1];
   const plainServiceReasons = reasonsText
@@ -79,7 +90,7 @@ export function buildAnalysisResult(result: AnalyzeResponse): AnalysisResult {
     plainServiceReasons: plainServiceReasons?.length ? plainServiceReasons : undefined,
     phishScore: score,
     intent: result.intent,
-    slmData: result.slm_parsed,
+    slmData,
     explanationSource: result.explanation_source,
     recommendedActions: [
       ...specificActions.filter(
