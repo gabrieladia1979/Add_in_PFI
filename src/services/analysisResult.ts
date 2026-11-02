@@ -1,6 +1,6 @@
 import type { AnalyzeResponse, SlmAction, SlmExplanation } from "./analysisService";
 
-// Baseline advice is owned by the add-in and is shown even without SLM output.
+// Baseline advice is shown for legitimate verdicts, even without SLM output.
 const BASELINE_RECOMMENDATIONS: SlmAction[] = [
   {
     code: "stay_cautious",
@@ -73,9 +73,12 @@ export function buildAnalysisResult(result: AnalyzeResponse): AnalysisResult {
   const specificActions: SlmAction[] = serviceActions?.length
     ? serviceActions
     : result.is_phishing
-      ? result.intent === "desviar_pago"
-        ? [{ code: "do_not_pay", text: "No transfieras dinero a la cuenta indicada hasta confirmar el cambio." }]
-        : [{ code: "do_not_click", text: "No abras los enlaces ni adjuntos hasta verificar el mensaje." }]
+      ? [
+          result.intent === "desviar_pago"
+            ? { code: "do_not_pay", text: "No transfieras dinero a la cuenta indicada hasta confirmar el cambio." }
+            : { code: "do_not_click", text: "No abras los enlaces ni adjuntos hasta verificar el mensaje." },
+          { code: "verify_via_official_channel", text: "Consultá al remitente por un canal oficial iniciado por vos." },
+        ]
       : [];
 
   return {
@@ -95,9 +98,9 @@ export function buildAnalysisResult(result: AnalyzeResponse): AnalysisResult {
     recommendedActions: [
       ...specificActions.filter(
         (action) => action.code !== "no_action_needed"
-          && !BASELINE_RECOMMENDATIONS.some((baseline) => baseline.code === action.code)
+          && (result.is_phishing || !BASELINE_RECOMMENDATIONS.some((baseline) => baseline.code === action.code))
       ),
-      ...BASELINE_RECOMMENDATIONS,
+      ...(result.is_phishing ? [] : BASELINE_RECOMMENDATIONS),
     ],
   };
 }
