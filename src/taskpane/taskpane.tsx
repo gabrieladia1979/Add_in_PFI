@@ -332,19 +332,7 @@ function TaskPane(): JSX.Element {
     }
   };
 
-  const recommendedActions = analysisResult?.slmData?.recommended_actions?.length
-    ? analysisResult.slmData.recommended_actions
-    : analysisResult?.isPhishing && analysisResult.intent === "desviar_pago"
-      ? [
-          { code: "do_not_pay", text: "No transfieras dinero a la cuenta indicada hasta confirmar el cambio." },
-          { code: "verify_via_official_channel", text: "Consultá al proveedor por un canal oficial que ya conozcas." },
-        ]
-    : analysisResult?.isPhishing
-      ? [
-          { code: "do_not_click", text: "No abras los enlaces ni adjuntos hasta verificar el mensaje." },
-          { code: "verify_via_official_channel", text: "Consultá al remitente por un canal oficial iniciado por vos." },
-        ]
-      : [{ code: "verify_via_official_channel", text: "Si tenés dudas, comprobá el remitente y los enlaces por un canal oficial." }];
+  const recommendedActions = analysisResult?.recommendedActions || [];
 
   // Present each explanation once when the service repeats a detected signal.
   const explanationKey = (text: string): string => explanationText(text).replace(/\s+/g, " ").toLocaleLowerCase("es");
@@ -579,7 +567,7 @@ function TaskPane(): JSX.Element {
 
                     {recommendedActions.length > 0 && (
                       <section className="pa-section pa-recommendations">
-                        <h2 className="pa-section-title">{analysisResult.isPhishing ? "¿Qué deberías hacer?" : "Recomendación"}</h2>
+                        <h2 className="pa-section-title">{analysisResult.isPhishing ? "¿Qué deberías hacer?" : "Recomendaciones"}</h2>
                         <ul className="pa-actions">
                           {recommendedActions.map((action, idx) => <li key={idx}>{explanationText(action.text)}</li>)}
                         </ul>

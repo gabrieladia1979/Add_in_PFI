@@ -1,4 +1,20 @@
-import type { AnalyzeResponse, SlmExplanation } from "./analysisService";
+import type { AnalyzeResponse, SlmAction, SlmExplanation } from "./analysisService";
+
+// Baseline advice is owned by the add-in and is shown even without SLM output.
+const BASELINE_RECOMMENDATIONS: SlmAction[] = [
+  {
+    code: "stay_cautious",
+    text: "Mantené la precaución: un resultado de bajo riesgo no garantiza que el correo sea seguro.",
+  },
+  {
+    code: "verify_via_official_channel",
+    text: "Verificá las solicitudes inesperadas por un canal conocido: llamá a un número de confianza o ingresá al sitio oficial por tu cuenta.",
+  },
+  {
+    code: "check_sender_domain",
+    text: "Si no esperabas este correo, revisá la dirección completa y el dominio del remitente antes de abrir enlaces o adjuntos. No te guíes solo por el nombre visible.",
+  },
+];
 
 export type AnalysisResult = {
   isPhishing: boolean;
@@ -12,6 +28,7 @@ export type AnalysisResult = {
   intent?: string;
   slmData?: SlmExplanation | null;
   explanationSource?: "slm" | "fallback";
+  recommendedActions: SlmAction[];
 };
 
 export function buildAnalysisResult(result: AnalyzeResponse): AnalysisResult {
@@ -41,6 +58,15 @@ export function buildAnalysisResult(result: AnalyzeResponse): AnalysisResult {
     .filter(Boolean)
     .filter((reason) => !(result.intent === "desviar_pago" && reason === "Se detectó contenido relacionado con pagos o información financiera."));
 
+  const serviceActions = result.slm_parsed?.recommended_actions;
+  const specificActions: SlmAction[] = serviceActions?.length
+    ? serviceActions
+    : result.is_phishing
+      ? result.intent === "desviar_pago"
+        ? [{ code: "do_not_pay", text: "No transfieras dinero a la cuenta indicada hasta confirmar el cambio." }]
+        : [{ code: "do_not_click", text: "No abras los enlaces ni adjuntos hasta verificar el mensaje." }]
+      : [];
+
   return {
     isPhishing: result.is_phishing,
     contentSignals: result.content_signals || [],
@@ -55,6 +81,13 @@ export function buildAnalysisResult(result: AnalyzeResponse): AnalysisResult {
     intent: result.intent,
     slmData: result.slm_parsed,
     explanationSource: result.explanation_source,
+    recommendedActions: [
+      ...specificActions.filter(
+        (action) => action.code !== "no_action_needed"
+          && !BASELINE_RECOMMENDATIONS.some((baseline) => baseline.code === action.code)
+      ),
+      ...BASELINE_RECOMMENDATIONS,
+    ],
   };
 }
 
