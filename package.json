@@ -1,6 +1,7 @@
 {
   "name": "add-in-pfi",
-  "version": "0.1.0",
+  "version": "1.0.0",
+  "description": "Complemento de Outlook para PhishARG - Detección y análisis de phishing (PFI)",
   "private": true,
   "scripts": {
     "dev-server": "webpack serve --mode development",
