@@ -2,7 +2,7 @@
 
 Complemento de Outlook para **PhishARG Hybrid Piloto**, diseñado para interactuar directamente con el servicio de inferencia híbrida y explicabilidad XAI en AWS ECS Fargate.
 
-La rama `entrega` contiene el cliente Hybrid para la entrega del PFI y se usa con `flujo_v2/entrega`. Para una descripción detallada de la arquitectura en dos fases, el protocolo de autenticación con tokens HMAC y las configuraciones de entorno, consultar [docs/ARQUITECTURA_PILOTO_HIBRIDO.md](docs/ARQUITECTURA_PILOTO_HIBRIDO.md).
+La rama `entrega` contiene el cliente Hybrid oficial para la entrega del PFI y se comunica de forma nativa con `flujo_v2/entrega`. Para una descripción detallada de la arquitectura en dos fases, el protocolo de autenticación con tokens HMAC y las configuraciones de entorno, consultar [docs/ARQUITECTURA_PILOTO_HIBRIDO.md](docs/ARQUITECTURA_PILOTO_HIBRIDO.md). Para la memoria completa de saneamiento, estructura y entrega, consultar [docs/RESUMEN_SANEAMIENTO_Y_ENTREGA.md](docs/RESUMEN_SANEAMIENTO_Y_ENTREGA.md).
 
 ## Requisitos
 - Node.js 18+
