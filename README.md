@@ -1,6 +1,8 @@
-# Add-in PFI
+# PhishARG Hybrid Piloto — Add-in Outlook
 
-Skeleton inicial del add-in de Outlook para el proyecto de ciberdefensa con XAI.
+Complemento de Outlook para **PhishARG Hybrid Piloto**, diseñado para interactuar directamente con el servicio de inferencia híbrida y explicabilidad XAI en AWS ECS Fargate.
+
+Para una descripción detallada de la arquitectura en dos fases, el protocolo de autenticación con tokens HMAC y las configuraciones de entorno, consultar [docs/ARQUITECTURA_PILOTO_HIBRIDO.md](docs/ARQUITECTURA_PILOTO_HIBRIDO.md).
 
 ## Requisitos
 - Node.js 18+
@@ -24,8 +26,8 @@ Verificación local:
 
 ```powershell
 node --test scripts/test-analysis.cjs
+node --test scripts/test-api-token.cjs
 npm run build:dev
-# Para probar la compilación de producción, configurar API_BASE_URL con HTTPS.
 ```
 
 Con el backend Hybrid ejecutándose localmente en el puerto 8001 y su artefacto configurado, `node scripts/check-hybrid-backend.cjs` realiza una llamada HTTP real y comprueba el contrato que usa el add-in. Si el backend está en otro puerto, definir `ANALYSIS_BACKEND_URL`; si usa otra clave, definir `API_KEY`. La prueba imprime solo el veredicto y estados de XAI, no el contenido del correo.

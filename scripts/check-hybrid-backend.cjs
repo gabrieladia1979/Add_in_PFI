@@ -1,4 +1,4 @@
-// Contract smoke test against a running flujo_v2 codex/hybrid-xai backend.
+// Contract smoke test against a running flujo_v2 hybrid-xai-aws backend.
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');

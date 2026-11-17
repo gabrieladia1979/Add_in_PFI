@@ -432,7 +432,7 @@ function TaskPane(): JSX.Element {
               onClick={handleAnalyze}
               disabled={!mailMetadata || isAnalyzing || isEnriching}
             >
-              {isAnalyzing ? "Analizando..." : "Analizar Amenaza con IA"}
+              {isAnalyzing ? "Analizando..." : "Analizar Amenaza"}
             </button>
             {(isAnalyzing || isEnriching) && (
               <button type="button" onClick={handleCancel} className="mt-3 w-full rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700">
