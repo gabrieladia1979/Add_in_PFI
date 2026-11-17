@@ -28,7 +28,7 @@ test('conserva el veredicto de phishing y las señales detectadas', () => {
   const signals = [{ rule: 'credential_disclosure_request', description: 'Pedido de credenciales' }];
   const result = buildAnalysisResult({ is_phishing: true, confidence_score: 0.95, raw_label: 'PHISHING', content_signals: signals });
   assert.equal(result.isPhishing, true);
-  assert.equal(result.threatLevel, 'Peligro Critico');
+  assert.equal(result.threatLevel, 'Peligro Crítico');
   assert.equal(result.contentSignals, signals);
 });
 

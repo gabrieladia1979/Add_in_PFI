@@ -36,7 +36,7 @@ export function buildAnalysisResult(result: AnalyzeResponse): AnalysisResult {
 
   let threatLevel = "Bajo";
   if (result.is_phishing && score >= 75) {
-    threatLevel = "Peligro Critico";
+    threatLevel = "Peligro Crítico";
   } else if (result.is_phishing && score >= 50) {
     threatLevel = "Alto";
   } else if (result.is_phishing) {
@@ -44,8 +44,8 @@ export function buildAnalysisResult(result: AnalyzeResponse): AnalysisResult {
   }
 
   const explanation = result.raw_label || (result.is_phishing
-    ? "Se detectaron patrones similares a phishing. Revisa remitente, enlaces y urgencia."
-    : "No se detectaron patrones fuertes de phishing, pero revisa enlaces y remitente.");
+    ? "Se detectaron patrones similares a phishing. Revisá remitente, enlaces y urgencia."
+    : "No se detectaron patrones fuertes de phishing, pero revisá enlaces y remitente.");
 
   // Filtrar palabras clave internas de la explicación al usuario
   const slmData = result.slm_parsed ? {

@@ -67,7 +67,7 @@ export async function analyzeEmail(subject: string, body: string, sender: string
 
   if (!response.ok) {
     const message = await response.text();
-    throw new Error(message || "Error en el servicio de analisis");
+    throw new Error(message || "Error en el servicio de análisis");
   }
 
   const data: unknown = await response.json();

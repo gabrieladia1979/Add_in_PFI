@@ -6,10 +6,10 @@ Add-in de Outlook para PhishARG, desarrollado como parte del Proyecto Final de I
 - Node.js 18+
 - Outlook Desktop o Outlook Web (con sideload habilitado)
 
-## Instalacion
+## Instalación
 1. npm install
 
-## Ejecutar
+## Ejecución
 - npm run start
 
 ## Backend y veredicto
@@ -29,7 +29,7 @@ La función acepta JSON del mismo origen, valida el tamaño de la solicitud (má
 
 En desarrollo, webpack reenvía `/api` al backend local `http://127.0.0.1:8001`, o a `API_BASE_URL` si se define, y agrega `API_KEY` del lado del servidor de desarrollo. Solo para ese entorno local se admite la clave predeterminada de desarrollo. Configurar las variables en la terminal antes de ejecutar `npm start`.
 
-El panel respeta `is_phishing` enviado por el servidor y muestra `content_signals` aunque el SLM no devuelva JSON. No vuelve a clasificar un mensaje por superar 50% de score.
+El panel presenta el veredicto informado por el servicio (`is_phishing`) y detalla las señales detectadas (`content_signals`), independientemente del formato de la explicación del modelo.
 
 Verificación local:
 
