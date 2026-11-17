@@ -409,7 +409,7 @@ function TaskPane(): JSX.Element {
                 )}
                 {!overviewFeatures.sender_vs_from_match && (
                   <div className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
-                    Email enviado en nombre de otra persona
+                    Correo enviado en nombre de otra persona
                   </div>
                 )}
 
