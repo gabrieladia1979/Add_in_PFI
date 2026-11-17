@@ -21,7 +21,7 @@ const TECHNICAL_LABELS: Record<string, string> = {
 };
 
 const VERDICT_TIMEOUT_MS = 30_000;
-const EXPLANATION_TIMEOUT_MS = 60_000;
+const EXPLANATION_TIMEOUT_MS = 125_000;
 
 function AuthBadge({ label, result }: { label: string; result: string }): JSX.Element {
   let colorClasses = "bg-slate-100 text-slate-600";
