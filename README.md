@@ -2,7 +2,7 @@
 
 Add-in de Outlook para PhishARG, desarrollado como parte del Proyecto Final de Integración (PFI). Complemento para la detección y análisis de phishing asistido por modelos de lenguaje y explicabilidad (XAI).
 
-Para una descripción detallada de la arquitectura del complemento, separación de entornos, seguridad de proxies y guías de verificación, consultar [docs/ESTRUCTURA_Y_ENTREGA.md](docs/ESTRUCTURA_Y_ENTREGA.md).
+Para una descripción detallada de la arquitectura del complemento, separación de entornos, seguridad de proxies y guías de verificación, consultar [docs/ESTRUCTURA_Y_ENTREGA.md](docs/ESTRUCTURA_Y_ENTREGA.md). Para la bitácora completa de consolidación y saneamiento de cara a la entrega del PFI, consultar [docs/RESUMEN_SANEAMIENTO_Y_ENTREGA.md](docs/RESUMEN_SANEAMIENTO_Y_ENTREGA.md).
 
 ## Requisitos
 - Node.js 18+
