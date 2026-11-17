@@ -8,9 +8,9 @@
   <ProviderName>PFI</ProviderName>
   <DefaultLocale>es-ES</DefaultLocale>
   <DisplayName DefaultValue="PhishARG Hybrid Piloto" />
-  <Description DefaultValue="Panel de defensa proactiva con XAI y micro-gamificacion." />
-  <IconUrl DefaultValue="https://localhost:3000/assets/icon-32.png" />
-  <HighResolutionIconUrl DefaultValue="https://localhost:3000/assets/icon-80.png" />
+  <Description DefaultValue="Panel de defensa proactiva y análisis de phishing híbrido con explicabilidad (XAI)." />
+  <IconUrl DefaultValue="https://localhost:3000/assets/phisharg-shield-32.png" />
+  <HighResolutionIconUrl DefaultValue="https://localhost:3000/assets/phisharg-shield-80.png" />
   <SupportUrl DefaultValue="https://localhost:3000" />
 
   <Hosts>
@@ -68,20 +68,20 @@
     </Hosts>
     <Resources>
       <bt:Images>
-        <bt:Image id="icon16" DefaultValue="https://localhost:3000/assets/icon-16.png" />
-        <bt:Image id="icon32" DefaultValue="https://localhost:3000/assets/icon-32.png" />
-        <bt:Image id="icon80" DefaultValue="https://localhost:3000/assets/icon-80.png" />
+        <bt:Image id="icon16" DefaultValue="https://localhost:3000/assets/phisharg-shield-16.png" />
+        <bt:Image id="icon32" DefaultValue="https://localhost:3000/assets/phisharg-shield-32.png" />
+        <bt:Image id="icon80" DefaultValue="https://localhost:3000/assets/phisharg-shield-80.png" />
       </bt:Images>
       <bt:Urls>
         <bt:Url id="taskpaneUrl" DefaultValue="https://localhost:3000/taskpane.html" />
       </bt:Urls>
       <bt:ShortStrings>
-        <bt:String id="groupLabel" DefaultValue="Phish-Score" />
+        <bt:String id="groupLabel" DefaultValue="PhishARG Hybrid" />
         <bt:String id="buttonLabel" DefaultValue="Analizar correo" />
         <bt:String id="buttonTitle" DefaultValue="Analizar amenaza" />
       </bt:ShortStrings>
       <bt:LongStrings>
-        <bt:String id="buttonDescription" DefaultValue="Abre el panel de ciberdefensa y simula el analisis XAI." />
+        <bt:String id="buttonDescription" DefaultValue="Abre el panel de ciberdefensa y analiza el correo con el clasificador Hybrid." />
       </bt:LongStrings>
     </Resources>
   </VersionOverrides>

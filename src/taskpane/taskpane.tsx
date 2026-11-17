@@ -26,21 +26,27 @@ const EXPLANATION_TIMEOUT_MS = 60_000;
 function AuthBadge({ label, result }: { label: string; result: string }): JSX.Element {
   let colorClasses = "bg-slate-100 text-slate-600";
   let icon = "❓";
+  let text = result;
 
-  if (result === "pass") {
+  if (result === "pass" || result === "bestguesspass") {
     colorClasses = "bg-emerald-100 text-emerald-700";
     icon = "✅";
+    text = "Aprobado";
   } else if (result === "fail") {
     colorClasses = "bg-rose-100 text-rose-700";
     icon = "❌";
+    text = "Falló";
   } else if (result === "softfail" || result === "neutral") {
     colorClasses = "bg-amber-100 text-amber-700";
     icon = "⚠️";
+    text = "Sospechoso";
+  } else if (!result || result === "unknown" || result === "none") {
+    text = "Sin registro";
   }
 
   return (
     <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${colorClasses}`}>
-      {icon} {label}: {result}
+      {icon} {label}: {text}
     </span>
   );
 }
@@ -291,7 +297,7 @@ function TaskPane(): JSX.Element {
     <div className="min-h-screen bg-slate-50 px-6 py-8 text-slate-900">
       <header className="mb-8">
         <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">
-          Phish-Score Lab
+          PhishARG Hybrid
         </p>
         <h1 className="mt-2 text-2xl font-semibold">Panel de Defensa Proactiva</h1>
         <p className="mt-2 text-sm text-slate-600">
@@ -379,7 +385,7 @@ function TaskPane(): JSX.Element {
               )}
               {!securityFeatures.sender_vs_from_match && (
                 <div className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
-                  ℹ️ Email enviado en nombre de otra persona
+                  ℹ️ Correo enviado en nombre de otra persona
                 </div>
               )}
 
@@ -398,11 +404,11 @@ function TaskPane(): JSX.Element {
                   </div>
                 )}
                 <div>
-                  <span className="font-semibold text-slate-400">Auth:</span>{" "}
+                  <span className="font-semibold text-slate-400">Autenticación:</span>{" "}
                   {securityFeatures.auth_as}
                 </div>
                 <div>
-                  <span className="font-semibold text-slate-400">Hops:</span>{" "}
+                  <span className="font-semibold text-slate-400">Saltos:</span>{" "}
                   {securityFeatures.received_hop_count}
                 </div>
               </div>
@@ -422,7 +428,7 @@ function TaskPane(): JSX.Element {
           )}
 
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold">Accion principal</h2>
+            <h2 className="text-lg font-semibold">Acción principal</h2>
             <p className="mt-2 text-sm text-slate-600">
               Analizá el correo abierto con el clasificador Hybrid. La explicación por palabras puede demorar más que el veredicto.
             </p>
@@ -675,7 +681,7 @@ function TaskPane(): JSX.Element {
                         </div>
                         <div className="mt-4">
                           <div className="flex items-center justify-between text-xs font-semibold uppercase text-slate-400">
-                            <span>Phish-Score</span>
+                            <span>Índice de riesgo</span>
                             <span>{analysisResult.phishScore}/100</span>
                           </div>
                           <div className="mt-2 h-2 w-full rounded-full bg-slate-200">
