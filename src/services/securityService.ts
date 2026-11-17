@@ -139,37 +139,37 @@ function parseAntispamHeaders(headers: string): {
     connectingIp: "",
   };
 
-  // SCL from X-Forefront-Antispam-Report
+  // SCL desde X-Forefront-Antispam-Report
   const sclMatch = headers.match(/SCL:(\-?\d+)/i);
   if (sclMatch) {
     result.scl = parseInt(sclMatch[1], 10);
   }
 
-  // CAT (Threat Category)
+  // Categoría de amenaza (CAT)
   const catMatch = headers.match(/CAT:([A-Z]+)/i);
   if (catMatch) {
     result.threatCategory = catMatch[1].toUpperCase();
   }
 
-  // SFV (Spam Filtering Verdict)
+  // Veredicto de filtrado de spam (SFV)
   const sfvMatch = headers.match(/SFV:([A-Z]+)/i);
   if (sfvMatch) {
     result.sfv = sfvMatch[1].toUpperCase();
   }
 
-  // BCL from X-Microsoft-Antispam
+  // BCL desde X-Microsoft-Antispam
   const bclMatch = headers.match(/BCL:(\d+)/i);
   if (bclMatch) {
     result.bcl = parseInt(bclMatch[1], 10);
   }
 
-  // CTRY (Country)
+  // País de origen (CTRY)
   const ctryMatch = headers.match(/CTRY:([A-Z]{2})/i);
   if (ctryMatch) {
     result.originatingCountry = ctryMatch[1].toUpperCase();
   }
 
-  // CIP (Connecting IP)
+  // IP de conexión (CIP)
   const cipMatch = headers.match(/CIP:([\d.]+)/i);
   if (cipMatch) {
     result.connectingIp = cipMatch[1];
@@ -224,17 +224,17 @@ function parseOriginMetadata(headers: string): {
   xMailer: string;
   receivedHopCount: number;
 } {
-  // X-Originating-IP
+  // Encabezado X-Originating-IP
   const origIpMatch = headers.match(
     /X-Originating-IP:\s*\[?([^\]\r\n]+)\]?/im
   );
   const originatingIp = origIpMatch ? origIpMatch[1].trim() : "";
 
-  // X-Mailer or User-Agent
+  // Encabezado X-Mailer o User-Agent
   const mailerMatch = headers.match(/(?:X-Mailer|User-Agent):\s*([^\r\n]+)/im);
   const xMailer = mailerMatch ? mailerMatch[1].trim() : "";
 
-  // Count Received: hops
+  // Conteo de saltos en encabezados Received:
   const receivedMatches = headers.match(/^Received:/gim);
   const receivedHopCount = receivedMatches ? receivedMatches.length : 0;
 
@@ -340,13 +340,13 @@ export async function extractSecurityFeatures(
 
   // --- Propiedades directas de Office.js ---
 
-  // Sender vs From
+  // Remitente declarado vs emisor real (Sender vs From)
   const fromEmail = item.from?.emailAddress?.toLowerCase() || "";
   const senderEmail = item.sender?.emailAddress?.toLowerCase() || "";
   features.sender_vs_from_match =
     fromEmail === senderEmail || senderEmail === "";
 
-  // Internet Message ID
+  // Identificador de mensaje (Internet Message ID)
   features.internet_message_id = item.internetMessageId || "";
 
   // Adjuntos
@@ -387,7 +387,7 @@ export async function extractSecurityFeatures(
   // AuthAs
   features.auth_as = parseAuthAs(headers);
 
-  // Spoofing
+  // Indicadores de suplantación (spoofing)
   const spoofing = parseSpoofingIndicators(headers, fromEmail);
   features.return_path = spoofing.returnPath;
   features.reply_to = spoofing.replyTo;

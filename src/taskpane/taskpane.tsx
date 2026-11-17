@@ -469,7 +469,7 @@ function TaskPane(): JSX.Element {
         </p>
         <h1 className="mt-2 text-2xl font-semibold">Panel de Defensa Proactiva</h1>
         <p className="mt-2 text-sm text-slate-600">
-          Educa en tiempo real y explica con XAI por que un correo es sospechoso.
+          Educa en tiempo real y explica mediante XAI por qué un correo es sospechoso.
         </p>
       </header>}
 
@@ -477,7 +477,7 @@ function TaskPane(): JSX.Element {
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold">Bienvenido</h2>
           <p className="mt-2 text-sm text-slate-600">
-            Vincula tu cuenta para comenzar el analisis contextual del correo abierto.
+            Vinculá tu cuenta para comenzar el análisis contextual del correo abierto.
           </p>
           <button
             className="mt-6 w-full rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700"
@@ -500,7 +500,7 @@ function TaskPane(): JSX.Element {
                 onClick={handleAnalyze}
                 disabled={!mailMetadata || isAnalyzing}
               >
-                {isAnalyzing ? "Analizando..." : "Analizar amenaza con IA"}
+                {isAnalyzing ? "Analizando..." : "Analizar correo"}
               </button>
               {isAnalyzing && (
                 <button type="button" onClick={handleCancel} className="pa-button pa-button--secondary">
@@ -574,7 +574,7 @@ function TaskPane(): JSX.Element {
                       </section>
                     )}
 
-                    {/* El servicio puede devolver una explicación de respaldo como texto plano. */}
+                    {/* Explicación de respaldo */}
                     {!analysisResult.slmData && (
                       <div className="pa-section">
                         <h3 className="pa-section-title">

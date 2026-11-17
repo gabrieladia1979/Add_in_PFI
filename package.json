@@ -6,7 +6,8 @@
     "dev-server": "webpack serve --mode development",
     "build": "webpack --mode production",
     "build:dev": "webpack --mode development",
-    "start": "webpack serve --mode development"
+    "start": "webpack serve --mode development",
+    "test": "node --test scripts/test-proxy.mjs"
   },
   "dependencies": {
     "react": "^18.2.0",

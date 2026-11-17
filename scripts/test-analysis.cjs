@@ -15,7 +15,7 @@ function loadService(name, globals = {}) {
   return exports;
 }
 
-test('uses the backend verdict even when score is above 50%', () => {
+test('utiliza el veredicto del backend incluso con score superior al 50%', () => {
   const { buildAnalysisResult } = loadService('analysisResult');
   const result = buildAnalysisResult({ is_phishing: false, confidence_score: 0.7373, raw_label: 'LEGÍTIMO' });
   assert.equal(result.isPhishing, false);
@@ -23,7 +23,7 @@ test('uses the backend verdict even when score is above 50%', () => {
   assert.equal(result.phishScore, 74);
 });
 
-test('preserves a phishing verdict and content evidence', () => {
+test('conserva el veredicto de phishing y las señales detectadas', () => {
   const { buildAnalysisResult } = loadService('analysisResult');
   const signals = [{ rule: 'credential_disclosure_request', description: 'Pedido de credenciales' }];
   const result = buildAnalysisResult({ is_phishing: true, confidence_score: 0.95, raw_label: 'PHISHING', content_signals: signals });
@@ -32,7 +32,7 @@ test('preserves a phishing verdict and content evidence', () => {
   assert.equal(result.contentSignals, signals);
 });
 
-test('maps backend evidence through the same-origin proxy without browser credentials', async () => {
+test('mapea la respuesta del backend a través del proxy sin exponer credenciales', async () => {
   let requestedUrl;
   let requestedPayload;
   const { analyzeEmail } = loadService('analysisService', {
