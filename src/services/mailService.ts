@@ -90,7 +90,7 @@ export async function getCurrentMessageMetadata(): Promise<MailMetadata | null> 
     sender,
     senderEmail,
     subject,
-    // Preserve href targets: the visible link text alone may hide a phishing URL.
+    // Preservar HTML para incluir enlaces originales
     body: bodyHtml || bodyText,
     bodyPreview: normalizeBodyPreview(bodyText),
   };

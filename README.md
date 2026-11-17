@@ -1,6 +1,6 @@
-# Add-in PFI
+# Add-in PFI - PhishARG
 
-Skeleton inicial del add-in de Outlook para el proyecto de ciberdefensa con XAI.
+Add-in de Outlook para PhishARG, desarrollado como parte del Proyecto Final de Integración (PFI). Complemento para la detección y análisis de phishing asistido por modelos de lenguaje y explicabilidad (XAI).
 
 ## Requisitos
 - Node.js 18+
@@ -25,7 +25,7 @@ Volver a desplegar después de configurar las variables. Para revocar una clave 
 
 Para comprobar el despliegue sin Outlook, abrir `/comprobar-conexion.html` en la vista previa (iniciando sesión en Vercel si está protegida) y pulsar «Probar conexión». Envía un mensaje sintético sin correos del buzón por la misma función que usa el add-in. Un resultado correcto comprueba la comunicación, no la precisión del clasificador ni el despliegue en otro dominio.
 
-La función acepta JSON del mismo origen, limita la solicitud a 1.100.000 bytes y espera hasta 25 segundos por AWS (duración máxima configurada en Vercel: 30 segundos). No registra cuerpos ni claves ni reenvía errores internos. El correo pasa por Vercel antes de llegar a AWS; se debe reflejar este recorrido en la documentación de privacidad. El control de origen no autentica usuarios ni impide clientes externos que falsifiquen ese encabezado. Esta versión no incorpora SSO, tokens de un solo uso ni DynamoDB. Configurar una regla de límite de solicitudes para `POST /api/v1/analyze` en Vercel Firewall antes de abrir el piloto a terceros; el límite debe probarse con la concurrencia esperada, y no se implementa como contador en memoria de una función aislada.
+La función acepta JSON del mismo origen, valida el tamaño de la solicitud (máximo 1.1 MB) y establece un tiempo de espera de 25 segundos para la comunicación con el backend en AWS (duración máxima configurada en Vercel: 30 segundos). No almacena cuerpos de correos ni claves, ni expone detalles internos del servicio ante errores. El correo pasa por la función en Vercel antes de llegar a AWS.
 
 En desarrollo, webpack reenvía `/api` al backend local `http://127.0.0.1:8001`, o a `API_BASE_URL` si se define, y agrega `API_KEY` del lado del servidor de desarrollo. Solo para ese entorno local se admite la clave predeterminada de desarrollo. Configurar las variables en la terminal antes de ejecutar `npm start`.
 

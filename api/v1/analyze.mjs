@@ -1,4 +1,3 @@
-// Node.js function. Credentials exist only in the server runtime environment.
 const MAX_REQUEST_BYTES = 1_100_000;
 const UPSTREAM_TIMEOUT_MS = 25_000;
 
@@ -80,7 +79,6 @@ export function createHandler({ env = process.env, fetchBackend = fetch, timeout
           redirect: "error",
           signal: controller.signal,
         });
-        // Never expose upstream diagnostics, credentials or infrastructure details.
         if (!upstream.ok) {
           if (upstream.status === 429) return json({ detail: "Demasiadas solicitudes. Intentá nuevamente en unos momentos." }, 429);
           if (upstream.status === 422) return json({ detail: "El servicio no pudo procesar los datos del correo" }, 422);

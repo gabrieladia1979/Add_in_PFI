@@ -10,7 +10,7 @@ import "./taskpane.css";
 
 const ANALYSIS_TIMEOUT_MS = 30_000;
 
-// Service explanations may contain decorative emoji. Keep the message text intact.
+// Limpieza de formato en la explicación
 function explanationText(value: string | null | undefined): string {
   return (value || "").replace(/[\p{Extended_Pictographic}\uFE0F\u200D]/gu, "").replace(/^[ \t]+/gm, "").trim();
 }
@@ -243,7 +243,7 @@ function TaskPane(): JSX.Element {
   };
 
   const handleUnlink = (): void => {
-    // Ignore responses from analyses started before this local UI reset.
+    // Cancelar análisis en curso
     analysisRequestId.current += 1;
     activeAnalysisController.current?.abort();
     setIsLinked(false);
@@ -334,7 +334,7 @@ function TaskPane(): JSX.Element {
 
   const recommendedActions = analysisResult?.recommendedActions || [];
 
-  // Present each explanation once when the service repeats a detected signal.
+  // Evitar explicaciones duplicadas
   const explanationKey = (text: string): string => explanationText(text).replace(/\s+/g, " ").toLocaleLowerCase("es");
   const seenExplanationKeys = new Set((analysisResult?.contentSignals || []).map((signal) => explanationKey(signal.description)));
   const visibleReasons = (analysisResult?.slmData?.reasons || []).filter((reason) => {
@@ -389,14 +389,14 @@ function TaskPane(): JSX.Element {
             </div>
           </dl>
         )}
-        {/* Security Indicators & Technical Authentication (only shown after analysis in Correo analizado) */}
+        {/* Indicadores de seguridad y autenticación técnica */}
         {Boolean(analysisResult) && (
           <>
             {overviewFeatures?.has_headers && (
               <div className="border-t border-slate-100 pt-4">
                 <h2 className="text-sm font-semibold">Indicadores de seguridad</h2>
 
-                {/* Spoofing alerts */}
+                {/* Detección de suplantación */}
                 {!overviewFeatures.from_return_path_match && (
                   <div className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">
                     Return-Path no coincide con el remitente
@@ -413,7 +413,7 @@ function TaskPane(): JSX.Element {
                   </div>
                 )}
 
-                {/* Origin info */}
+                {/* Información de origen */}
                 <div className="mt-4 grid grid-cols-2 gap-2 text-xs text-slate-600">
                   {overviewFeatures.originating_country && (
                     <div>
@@ -433,7 +433,7 @@ function TaskPane(): JSX.Element {
                   </div>
                 </div>
 
-                {/* Attachments */}
+                {/* Adjuntos */}
                 {overviewFeatures.attachment_count > 0 && (
                   <div className={`mt-3 rounded-lg px-3 py-2 text-xs ${
                     overviewFeatures.has_executable_attachment

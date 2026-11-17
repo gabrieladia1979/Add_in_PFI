@@ -7,7 +7,7 @@ const DANGEROUS_EXTENSIONS = new Set([
   ".pif", ".ps1", ".hta", ".cpl", ".reg", ".inf",
 ]);
 
-// ─── Header Retrieval ──────────────────────────────────────────────
+// Obtención de encabezados MIME
 
 /**
  * Obtiene todos los headers MIME del email actual.
@@ -47,7 +47,7 @@ function getInternetHeaders(item: Office.MessageRead): Promise<string> {
   });
 }
 
-// ─── Parsing Helpers ───────────────────────────────────────────────
+// Funciones auxiliares de parseo
 
 /**
  * Extrae el dominio de una dirección de email.
@@ -254,7 +254,7 @@ function parseAuthAs(headers: string): "Internal" | "Anonymous" | "unknown" {
   return "unknown";
 }
 
-// ─── Attachment Analysis ───────────────────────────────────────────
+// Análisis de adjuntos
 
 /**
  * Analiza los adjuntos del email para extraer features de seguridad.
@@ -291,7 +291,7 @@ function getAttachmentFeatures(item: Office.MessageRead): {
   };
 }
 
-// ─── Main Extraction ───────────────────────────────────────────────
+// Extracción principal de características
 
 /**
  * Crea un objeto SecurityFeatures con valores por defecto (sin datos).

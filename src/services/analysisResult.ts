@@ -1,6 +1,6 @@
 import type { AnalyzeResponse, SlmAction, SlmExplanation } from "./analysisService";
 
-// Baseline advice is shown for legitimate verdicts, even without SLM output.
+// Recomendaciones base para correos legítimos
 const BASELINE_RECOMMENDATIONS: SlmAction[] = [
   {
     code: "stay_cautious",
@@ -47,8 +47,7 @@ export function buildAnalysisResult(result: AnalyzeResponse): AnalysisResult {
     ? "Se detectaron patrones similares a phishing. Revisa remitente, enlaces y urgencia."
     : "No se detectaron patrones fuertes de phishing, pero revisa enlaces y remitente.");
 
-  // Classifier keywords are not verified excerpts or contextual phishing signals.
-  // Keep them out of the user-facing explanation in both response formats.
+  // Filtrar palabras clave internas de la explicación al usuario
   const slmData = result.slm_parsed ? {
     ...result.slm_parsed,
     reasons: result.slm_parsed.reasons.filter((reason) =>
