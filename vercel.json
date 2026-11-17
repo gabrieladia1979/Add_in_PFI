@@ -2,6 +2,6 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "functions": {
-    "api/v1/analyze.mjs": { "maxDuration": 30 }
+    "api/v1/analyze/token.mjs": { "maxDuration": 10 }
   }
 }

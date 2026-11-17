@@ -1,49 +1,41 @@
-# Add-in PFI - PhishARG
+# PhishARG Hybrid para Outlook
 
-Add-in de Outlook para PhishARG, desarrollado como parte del Proyecto Final de Integración (PFI). Complemento para la detección y análisis de phishing asistido por modelos de lenguaje y explicabilidad (XAI).
+Complemento de Outlook para **PhishARG Hybrid Piloto**, diseñado para interactuar directamente con el servicio de inferencia híbrida y explicabilidad XAI en AWS ECS Fargate.
 
-Para una descripción detallada de la arquitectura del complemento, separación de entornos, seguridad de proxies y guías de verificación, consultar [docs/ESTRUCTURA_Y_ENTREGA.md](docs/ESTRUCTURA_Y_ENTREGA.md). Para la bitácora completa de consolidación y saneamiento de cara a la entrega del PFI, consultar [docs/RESUMEN_SANEAMIENTO_Y_ENTREGA.md](docs/RESUMEN_SANEAMIENTO_Y_ENTREGA.md).
+La rama `entrega` contiene el cliente Hybrid para la entrega del PFI y se usa con `flujo_v2/entrega`. Para una descripción detallada de la arquitectura en dos fases, el protocolo de autenticación con tokens HMAC y las configuraciones de entorno, consultar [docs/ARQUITECTURA_PILOTO_HIBRIDO.md](docs/ARQUITECTURA_PILOTO_HIBRIDO.md).
 
 ## Requisitos
 - Node.js 18+
 - Outlook Desktop o Outlook Web (con sideload habilitado)
 
 ## Instalación
-1. npm install
 
-## Ejecución
+`npm ci`
+
+## Ejecutar
 - npm run start
 
 ## Backend y veredicto
 
-El navegador llama a `/api/v1/analyze` en el mismo dominio del complemento. La función Node.js `api/v1/analyze.mjs` en Vercel reenvía el correo al backend AWS y agrega `X-API-Key` del lado del servidor. La clave y la dirección de AWS no se incorporan al bundle del navegador. El código del clasificador no cambia.
+El cliente llama a `POST /api/v1/analyze/hybrid` del backend `flujo_v2`. Para el piloto en AWS, usá la configuración de la rama `hybrid-xai-aws`. Su manifiesto registra **PhishARG Hybrid Piloto** con un ID propio para instalarlo junto al complemento de `main`. El manifiesto publicado apunta al dominio previsto `add-in-pfi-hybrid.vercel.app`. Confirmá el dominio asignado al proyecto separado de Vercel y actualizá el manifiesto si corresponde, antes de instalarlo.
 
-Antes de publicar, configurar en Vercel (Production y Preview, según corresponda):
+En el proyecto separado de Vercel, configurá `API_BASE_URL` con el origen HTTPS del servicio Hybrid, `PHISHARG_TOKEN_KEY` con la clave de firma compartida con ese servicio y `PHISHARG_RATE_LIMIT_ID` con la regla de control de tasa de ese proyecto. La función del servidor emite los permisos de análisis y conserva la clave de firma. En ECS, configurá `PHISHARG_CORS_ORIGINS` con el origen del complemento piloto. En desarrollo, webpack reenvía `/api` al backend local en `http://127.0.0.1:8001`.
 
-- `API_BASE_URL`: origen HTTPS del backend, sin ruta, query ni credenciales; por ejemplo `https://api.example.com`.
-- `API_KEY`: clave que acepta el backend. No hay clave de respaldo en la función publicada; si falta configuración, responde 503.
-
-Volver a desplegar después de configurar las variables. Para revocar una clave incluida en versiones anteriores del navegador, coordinar su reemplazo en la variable `API_KEY` de AWS y en Vercel, y actualizar ambos servicios. Cambiar solo el cliente no revoca esa clave.
-
-Para comprobar el despliegue sin Outlook, abrir `/comprobar-conexion.html` en la vista previa (iniciando sesión en Vercel si está protegida) y pulsar «Probar conexión». Envía un mensaje sintético sin correos del buzón por la misma función que usa el add-in. Un resultado correcto comprueba la comunicación, no la precisión del clasificador ni el despliegue en otro dominio.
-
-La función acepta JSON del mismo origen, valida el tamaño de la solicitud (máximo 1.1 MB) y establece un tiempo de espera de 25 segundos para la comunicación con el backend en AWS (duración máxima configurada en Vercel: 30 segundos). No almacena cuerpos de correos ni claves, ni expone detalles internos del servicio ante errores. El correo pasa por la función en Vercel antes de llegar a AWS.
-
-En desarrollo, webpack reenvía `/api` al backend local `http://127.0.0.1:8001`, o a `API_BASE_URL` si se define, y agrega `API_KEY` del lado del servidor de desarrollo. Solo para ese entorno local se admite la clave predeterminada de desarrollo. Configurar las variables en la terminal antes de ejecutar `npm start`.
-
-El panel presenta el veredicto informado por el servicio (`is_phishing`) y detalla las señales detectadas (`content_signals`), independientemente del formato de la explicación del modelo.
+El panel respeta `is_phishing` enviado por el servidor y muestra `content_signals` aunque la explicación no devuelva JSON. No vuelve a clasificar un mensaje por superar 50/100 de índice de riesgo. Lee `hybrid_xai`: presenta variables técnicas atribuidas al modelo y palabras LIME únicamente cuando el backend las marca confiables y el veredicto bruto coincide con el final. Si LIME no supera la fidelidad, muestra esa limitación sin inventar palabras influyentes. El cálculo de LIME puede aumentar la latencia de la respuesta.
 
 Verificación local:
 
 ```powershell
-node --test scripts/test-analysis.cjs
-node --test scripts/test-proxy.mjs
-npm run build
+npm test
+npm run build:dev
 ```
+
+Con el backend Hybrid ejecutándose localmente en el puerto 8001 y su artefacto configurado, `node scripts/check-hybrid-backend.cjs` realiza una llamada HTTP real y comprueba el contrato que usa el add-in. Si el backend está en otro puerto, definir `ANALYSIS_BACKEND_URL`; si usa otra clave, definir `API_KEY`. La prueba imprime solo el veredicto y estados de XAI, no el contenido del correo.
+
+La prueba completa en Outlook requiere desplegar el cliente en el proyecto separado de Vercel y disponer de un endpoint HTTPS para el piloto Hybrid.
 
 ## Notas
 - El panel se carga en lectura de mensajes (Message Read).
-- `manifest.xml` apunta a Vercel; `manifest-local.xml` apunta a `https://localhost:3000`.
-- Para probar el servidor local, cargá `manifest-local.xml` desde Complementos de Outlook. Para usar la versión publicada, cargá `manifest.xml` después de desplegar los cambios en Vercel.
-- El nombre que muestra Outlook proviene del manifiesto instalado. Si cambió el nombre, quitá la instalación anterior y volvé a cargar el manifiesto correspondiente; reiniciar o recompilar el frontend no actualiza ese dato.
-- Si tu entorno no confía en el certificado local, aceptá el certificado del servidor de desarrollo.
+- El manifest principal esta en manifest.xml.
+ - Sideload manual: en Outlook, agrega manifest.xml desde Complementos.
+ - Si tu entorno no confia en el certificado local, acepta el certificado del dev server.

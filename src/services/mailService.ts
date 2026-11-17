@@ -39,11 +39,7 @@ function normalizeBodyPreview(text: string): string {
     return "Sin contenido";
   }
 
-  if (compact.length <= BODY_PREVIEW_LIMIT) {
-    return compact;
-  }
-
-  return `${compact.slice(0, BODY_PREVIEW_LIMIT).trimEnd()}…`;
+  return compact.slice(0, BODY_PREVIEW_LIMIT);
 }
 
 function getBodyText(item: Office.MessageRead): Promise<string> {
@@ -90,7 +86,7 @@ export async function getCurrentMessageMetadata(): Promise<MailMetadata | null> 
     sender,
     senderEmail,
     subject,
-    // Preservar HTML para incluir enlaces originales
+    // Preserve href targets: the visible link text alone may hide a phishing URL.
     body: bodyHtml || bodyText,
     bodyPreview: normalizeBodyPreview(bodyText),
   };

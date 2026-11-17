@@ -1,16 +1,16 @@
 {
   "name": "add-in-pfi",
   "version": "1.0.0",
-  "description": "Complemento de Outlook para PhishARG - Detección y análisis de phishing (PFI)",
   "private": true,
   "scripts": {
     "dev-server": "webpack serve --mode development",
     "build": "webpack --mode production",
     "build:dev": "webpack --mode development",
     "start": "webpack serve --mode development",
-    "test": "node --test scripts/test-proxy.mjs"
+    "test": "node --test scripts/test-analysis.cjs scripts/test-api-token.cjs"
   },
   "dependencies": {
+    "@vercel/firewall": "^1.2.6",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },
@@ -31,5 +31,6 @@
     "webpack": "^5.93.0",
     "webpack-cli": "^5.1.4",
     "webpack-dev-server": "^4.15.2"
-  }
+  },
+  "description": "Complemento de Outlook para PhishARG Hybrid (PFI)"
 }

@@ -1,9 +1,9 @@
 const path = require("path");
+const webpack = require("webpack");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const CopyWebpackPlugin = require("copy-webpack-plugin");
 module.exports = async (_env, argv) => {
   const isDev = argv.mode === "development";
-  const apiBaseUrl = (process.env.API_BASE_URL || "").trim().replace(/\/+$/, "");
 
   return {
     entry: {
@@ -37,6 +37,7 @@ module.exports = async (_env, argv) => {
       ],
     },
     plugins: [
+      new webpack.DefinePlugin({ __LOCAL_DEV__: JSON.stringify(isDev) }),
       new HtmlWebpackPlugin({
         filename: "taskpane.html",
         template: path.resolve(__dirname, "src/taskpane/taskpane.html"),
@@ -46,7 +47,6 @@ module.exports = async (_env, argv) => {
         patterns: [
           { from: "manifest.xml", to: "manifest.xml" },
           { from: "assets", to: "assets" },
-          { from: "public", to: "." },
         ],
       }),
     ],
@@ -60,7 +60,7 @@ module.exports = async (_env, argv) => {
       proxy: [
         {
           context: ["/api"],
-          target: apiBaseUrl || "http://127.0.0.1:8001",
+          target: "http://127.0.0.1:8001",
           changeOrigin: true,
           headers: { "X-API-Key": process.env.API_KEY || "PHISHARG_DEV_KEY_123" },
         },

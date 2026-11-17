@@ -7,7 +7,7 @@ const DANGEROUS_EXTENSIONS = new Set([
   ".pif", ".ps1", ".hta", ".cpl", ".reg", ".inf",
 ]);
 
-// Obtención de encabezados MIME
+// ─── Header Retrieval ──────────────────────────────────────────────
 
 /**
  * Obtiene todos los headers MIME del email actual.
@@ -15,39 +15,25 @@ const DANGEROUS_EXTENSIONS = new Set([
  */
 function getInternetHeaders(item: Office.MessageRead): Promise<string> {
   return new Promise((resolve) => {
-    let settled = false;
-    const complete = (val: string): void => {
-      if (!settled) {
-        settled = true;
-        window.clearTimeout(timerId);
-        resolve(val);
-      }
-    };
-    const timerId = window.setTimeout(() => complete(""), 4000);
-
     if (
       !Office.context.requirements.isSetSupported("Mailbox", "1.8") ||
       !item.getAllInternetHeadersAsync
     ) {
-      complete("");
+      resolve("");
       return;
     }
 
-    try {
-      item.getAllInternetHeadersAsync((result) => {
-        if (result.status === Office.AsyncResultStatus.Succeeded) {
-          complete(result.value || "");
-          return;
-        }
-        complete("");
-      });
-    } catch {
-      complete("");
-    }
+    item.getAllInternetHeadersAsync((result) => {
+      if (result.status === Office.AsyncResultStatus.Succeeded) {
+        resolve(result.value || "");
+        return;
+      }
+      resolve("");
+    });
   });
 }
 
-// Funciones auxiliares de parseo
+// ─── Parsing Helpers ───────────────────────────────────────────────
 
 /**
  * Extrae el dominio de una dirección de email.
@@ -139,37 +125,37 @@ function parseAntispamHeaders(headers: string): {
     connectingIp: "",
   };
 
-  // SCL desde X-Forefront-Antispam-Report
+  // SCL from X-Forefront-Antispam-Report
   const sclMatch = headers.match(/SCL:(\-?\d+)/i);
   if (sclMatch) {
     result.scl = parseInt(sclMatch[1], 10);
   }
 
-  // Categoría de amenaza (CAT)
+  // CAT (Threat Category)
   const catMatch = headers.match(/CAT:([A-Z]+)/i);
   if (catMatch) {
     result.threatCategory = catMatch[1].toUpperCase();
   }
 
-  // Veredicto de filtrado de spam (SFV)
+  // SFV (Spam Filtering Verdict)
   const sfvMatch = headers.match(/SFV:([A-Z]+)/i);
   if (sfvMatch) {
     result.sfv = sfvMatch[1].toUpperCase();
   }
 
-  // BCL desde X-Microsoft-Antispam
+  // BCL from X-Microsoft-Antispam
   const bclMatch = headers.match(/BCL:(\d+)/i);
   if (bclMatch) {
     result.bcl = parseInt(bclMatch[1], 10);
   }
 
-  // País de origen (CTRY)
+  // CTRY (Country)
   const ctryMatch = headers.match(/CTRY:([A-Z]{2})/i);
   if (ctryMatch) {
     result.originatingCountry = ctryMatch[1].toUpperCase();
   }
 
-  // IP de conexión (CIP)
+  // CIP (Connecting IP)
   const cipMatch = headers.match(/CIP:([\d.]+)/i);
   if (cipMatch) {
     result.connectingIp = cipMatch[1];
@@ -224,17 +210,17 @@ function parseOriginMetadata(headers: string): {
   xMailer: string;
   receivedHopCount: number;
 } {
-  // Encabezado X-Originating-IP
+  // X-Originating-IP
   const origIpMatch = headers.match(
     /X-Originating-IP:\s*\[?([^\]\r\n]+)\]?/im
   );
   const originatingIp = origIpMatch ? origIpMatch[1].trim() : "";
 
-  // Encabezado X-Mailer o User-Agent
+  // X-Mailer or User-Agent
   const mailerMatch = headers.match(/(?:X-Mailer|User-Agent):\s*([^\r\n]+)/im);
   const xMailer = mailerMatch ? mailerMatch[1].trim() : "";
 
-  // Conteo de saltos en encabezados Received:
+  // Count Received: hops
   const receivedMatches = headers.match(/^Received:/gim);
   const receivedHopCount = receivedMatches ? receivedMatches.length : 0;
 
@@ -254,7 +240,7 @@ function parseAuthAs(headers: string): "Internal" | "Anonymous" | "unknown" {
   return "unknown";
 }
 
-// Análisis de adjuntos
+// ─── Attachment Analysis ───────────────────────────────────────────
 
 /**
  * Analiza los adjuntos del email para extraer features de seguridad.
@@ -291,7 +277,7 @@ function getAttachmentFeatures(item: Office.MessageRead): {
   };
 }
 
-// Extracción principal de características
+// ─── Main Extraction ───────────────────────────────────────────────
 
 /**
  * Crea un objeto SecurityFeatures con valores por defecto (sin datos).
@@ -340,13 +326,13 @@ export async function extractSecurityFeatures(
 
   // --- Propiedades directas de Office.js ---
 
-  // Remitente declarado vs emisor real (Sender vs From)
+  // Sender vs From
   const fromEmail = item.from?.emailAddress?.toLowerCase() || "";
   const senderEmail = item.sender?.emailAddress?.toLowerCase() || "";
   features.sender_vs_from_match =
     fromEmail === senderEmail || senderEmail === "";
 
-  // Identificador de mensaje (Internet Message ID)
+  // Internet Message ID
   features.internet_message_id = item.internetMessageId || "";
 
   // Adjuntos
@@ -387,7 +373,7 @@ export async function extractSecurityFeatures(
   // AuthAs
   features.auth_as = parseAuthAs(headers);
 
-  // Indicadores de suplantación (spoofing)
+  // Spoofing
   const spoofing = parseSpoofingIndicators(headers, fromEmail);
   features.return_path = spoofing.returnPath;
   features.reply_to = spoofing.replyTo;
